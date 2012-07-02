@@ -29,32 +29,23 @@ class Resolver(object):
         # Collection "httpheader"
         self._headers = storage._headermeta
 
-        # FIXME: smazat
-        self._base = ""
-        self._counter = 0
-
     def resolve(self, url):
         # Tady bude asi ta nejvetsi magie z celeho systemu
 
-        #Musi zajistit, ze se spravne updatuje databaze, pokud se neco zmenilo.
-        #Pokud byl proveden redirect, pak musi do Content.urls = [] ulozit obe
-        #dve URL adresy (puvodni a redirectnutou) a nebo zjistit, jak funguje
-        # aliases v GirdOut
-
-        #FIXME: prozatimni - smazat!!
-        #self._base += "random data" + str(self._counter)
-        #self._counter += 1
-        #content_id = self._filesystem.put(self._base, filename=url, content_type="text/plain")
-        ##print content_id
-        #print self._headers.save_header(url, "200", [('etag', 'asf5dg5av7656'),
-        #    ('last-modified', 'Sat, 30 Jun 2012 16:09:43 GMT')], content_id)
+        #Musi zajistit
+        # - ze se posle pozadavek na server
+        # - ze se spravne updatuje databaze, pokud se neco zmenilo.
+        # - pokud byl proveden redirect, pak musi do Content.urls = [] ulozit obe
+        # dve URL adresy (puvodni a redirectnutou)
+        # a plno dalsich veci..
         pass
         
 
 
 class Rule(object):
     """
-    Pravidlo pro resolver.
+    Pravidlo pro resolver. Mozna se bude hodit nejake takove rozdeleni
+    tech pravidel... proste rozdel a panuj.
     """
     def __call__(self):
         """

@@ -18,7 +18,7 @@ import time
 import httplib
 from urlparse import urlsplit
 
-class _HTTPRequestProxy(object):
+class _HTTPConnectionProxy(object):
     """
     Mezivrstva pro pristup k internetu.
     Zde je nutne implementovat:
@@ -28,7 +28,7 @@ class _HTTPRequestProxy(object):
         - handlery pro presmerovani
         - handlery pro cookies
 
-    Zde je mozne implementovat:
+    Zde je mozne nekdy v budoucnu implementovat:
         - pristup k rrs_proxy (soucast reresearch)
         - zjednoduseni testovani: misto posilani pozadavku do site nejaky
         druh asociativni pameti ktery bude posilat testovaci a navracet data
@@ -37,7 +37,10 @@ class _HTTPRequestProxy(object):
 
     Navrhovy vzor: Proxy pattern.
     """
-    def __init__(self, method, url, headers, timeout):
+    def __init__(self):
+        pass
+
+    def send_request(self, method, url, headers, timeout):
         """
         @param method: HTTP method (GET/HEAD...)
         @type method: str
@@ -45,13 +48,7 @@ class _HTTPRequestProxy(object):
         @type url: basestring (str or unicode)
         @param headers: sent HTTP headers
         @type headers: dict
-        @returns: new instance
-        """
-        pass
-
-    def send(self):
-        """
-        Send this request and return HTTP response.
+        @returns: ??
         """
         #splitted_url = urlsplit(url)
         #conn = httplib.HTTPConnection(splitted_url.netloc, timeout=timeout)
@@ -71,6 +68,7 @@ class _HTTPRequestProxy(object):
         #    return None
         #except IOError:
         #    return None
+        pass
 
 
 class HTTPDateTime(object):
