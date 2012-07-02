@@ -98,17 +98,32 @@ class HTTPDateTime(object):
 
     def to_httpheader_format(self):
         """
-        Converts into datetime.datetime object into 'Wed, 31 Aug 2011 16:45:03 GMT'
+        Converts this object into date and time in HTTP-header format.
+
+        @returns: date and time in HTTP format, i.e. 'Wed, 31 Aug 2011 16:45:03 GMT'.
+        @rtype: str
         """
         return self._datetime.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
     def from_httpheader_format(self, timestr):
+        """
+        Parse http header datetime format and save into this object.
+
+        @param timestr: date and time in format which is used by HTTP protocol
+        @type timestr: str
+        @returns: HTTPDateTime object equivalent to date and time of the timestr
+        @rtype: HTTPDateTime
+        """
         ts = time.strptime(timestr, "%a, %d %b %Y %H:%M:%S GMT")
         self.from_timestamp(time.mktime(ts))
+        return self
 
     def to_timestamp(self):
         """
-        Converts into UNIX timestamp. (seconds since start of the UNIX epoch).
+        Convert into UNIX timestamp. (seconds since start of the UNIX epoch).
+
+        @returns: unix timestamp
+        @rtype: float
         """
         ts = time.strptime(str(self._datetime.year) + '-' + str(self._datetime.month) + \
             '-' + str(self._datetime.day) + 'T' + str(self._datetime.hour) + ':' + \
@@ -117,20 +132,43 @@ class HTTPDateTime(object):
         return time.mktime(ts) - 3600 + (self._datetime.microsecond / 1000000.0)
 
     def from_timestamp(self, timestamp):
+        """
+        Set date and time from timestamp.
+
+        @param timestamp: time since start of the unix epoch
+        @type timestamp: float
+        @returns: HTTPDateTime object representing date and time of the timestamp
+        @rtype: HTTPDateTime
+        """
         self._datetime = datetime.fromtimestamp(timestamp)
+        return self
 
     def to_datetime(self):
+        """
+        Convert the date and time from this object into python's datetime.datetime.
+
+        @returns: datetime object equivalent to date and time of this object
+        @rtype: datetime.datetime
+        """
         return self._datetime
 
     def from_datetime(self, datetimeobj):
         self._datetime = datetimeobj
+        return self
 
     def now(self):
+        """
+        Set the time of this object as current time (time.time())
+
+        @returns: HTTPDateTime object representing current date and time.
+        @rtype: HTTPDateTime
+        """
         self.from_timestamp(time.time())
         return self
 
     def __repr__(self):
         return "HTTPDateTime(%s)" % self.to_httpheader_format()
+
 
 if __name__ == "__main__":
     h = HTTPDateTime()

@@ -25,6 +25,8 @@ __author__ = "Stanislav Heller"
 __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__  = "$21.6.2012 16:08:11$"
 
+from urlparse import urlparse
+
 from gridfs.errors import NoFile
 from pymongo import Connection
 
@@ -111,7 +113,6 @@ class MonitoredResource(object):
         # resource data
         self.url = url
         self.uid = uid
-        self.headers = None # dict containing all headers ???
 
         # models
         self.storage = storage
@@ -126,11 +127,11 @@ class MonitoredResource(object):
         except DocumentNotAvailable:
             # if the file is not in the storage, resolver has to check
             # the url and load actual data into the storage
-            # FIXME: toto mozna nebude nutne. stejne lidi budou volat check()
-            # po instanciaci
             self.resolver.resolve(url)
-            # TODO: tady asi self.file = None pokud to failne
-            self.file = self.storage.get(url)
+            try:
+                self.file = self.storage.get(url)
+            except DocumentNotAvailable:
+                raise DocumentNotAvailable("Resource '%s' is not available." % url)
 
 
     def check(self):
@@ -154,14 +155,14 @@ class MonitoredResource(object):
     def get_last_version(self):
         """
         Get last available content of the document. If the document is available
-        at this time, returns actual version which is on the web server.
+        at this time, returns most recent version which is on the web server.
 
         @returns: Last available content of this resource.
         @rtype: Content
         @raises: DocumentNotAvailable if no content available (resource does not
         exist on the URL and never existed within the known history)
         """
-        #self.resolver.resolve(self.url)
+        self.resolver.resolve(self.url)
         try:
             return self.file.get_last_version()
         except NoFile: # FIXME tady to prece nemuze byt??!
@@ -184,7 +185,7 @@ class MonitoredResource(object):
             ``-3``, version ``1`` is the same as version ``-2``, and
             version ``2`` is the same as version ``-1``.
         @type time_or_version: HTTPDateTime or int
-        @raises: DocumentNotAvailable if there is no available content until
+        @raises: DocumentHistoryNotAvailable if there is no available content until
         given time or version
         """
         if isinstance(time_or_version, HTTPDateTime):
@@ -217,9 +218,14 @@ class MonitoredResource(object):
 
 
     def last_checked(self):
-        # Kdy byl naposledy tento dokument kontrolovan
-        # Vraci pravdepodobne HTTPDateTime objekt
-        raise NotImplementedError()
+        """
+        Get information about the time of last check of this resource.
+
+        @returns: time of last check or None if the resource was never checked
+                  (or the HTTP requests timed out)
+        @rtype: HTTPDateTime or None
+        """
+        return self.headers.last_checked(self.url)
 
 
     def __repr__(self):
@@ -304,8 +310,14 @@ class Monitor(object):
         
         Design pattern: factory method.
         """
-        # TODO: otestovat validitu url
-        return MonitoredResource(url, self._user_id, self._storage)
+        # test the url validity
+        parse_result = urlparse(url)
+        if parse_result.netloc == '':
+            raise ValueError("URL '%s' is not properly formatted: missing netloc." % url)
+        if parse_result.scheme == '':
+            raise ValueError("URL '%s' is not properly formatted: missing scheme." % url)
+        # return monitored resource object
+        return MonitoredResource(parse_result.geturl(), self._user_id, self._storage)
 
 
     def allow_large_documents(self):
@@ -328,14 +340,14 @@ class Monitor(object):
         the Monitor storage system. If the UID is occupied, returns False,
         True otherwise.
 
-        If user_id is None, an exception RuntimeError is raised.
+        If user_id is None, an exception UidError is raised.
         
         @returns: True if the UID is free
         @rtype: bool
         """
         if self._user_id is None:
-            raise RuntimeError("Monitor is switched to global-view mode (uid is None).")
-        raise NotSupportedYet()
+            raise UidError("Cannot check uid=None. Monitor is switched to global-view mode.")
+        return self._storage.check_uid()
 
 
     def check_multi(self, urls=[]):
@@ -359,10 +371,9 @@ class Monitor(object):
 
 
 if __name__ == "__main__":
-    m = Monitor("rrs")
-    print m
-    r = m.get("http://www.google3.com")
-    print r, r.file
-    c = r.get_last_version()
-    #r.check()
-    print c, c.read()
+    m = Monitor(None)
+    r = m.get("h://www.google5.com")
+    print r.get_last_version()
+    print r.get_version(HTTPDateTime(2012,7,2,15,50))
+    #c = r.get_version(-1)
+    #print c, c.read()

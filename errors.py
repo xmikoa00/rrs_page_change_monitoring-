@@ -44,3 +44,8 @@ class NotSupportedYet(ChangeMonitorError):
     """
     pass
 
+class UidError(ChangeMonitorError):
+    """
+    Raised when some error connected with user id occured.
+    """
+    pass

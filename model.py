@@ -13,13 +13,15 @@ __author__ = "Stanislav Heller"
 __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__  = "$23.6.2012 16:33:31$"
 
+import time
 
-from pymongo import Connection
+from pymongo import Connection, ASCENDING, DESCENDING
 from gridfs import GridFS
 from gridfs.grid_file import GridOut
 
 from diff import PlainTextDiff, BinaryDiff
 from errors import *
+from _http import HTTPDateTime
 
 
 class BaseMongoModel(object):
@@ -80,13 +82,13 @@ class Storage(BaseMongoModel):
         # filesystem interface
         self.filesystem = GridFS(self._connection[database], "content")
         # flag representing possibility to save large objects into storage
-        self._allow_large = False
+        self.allow_large = False
 
     def allow_large_documents(self):
         """
         Allow large objects to be stored in the storage.
         """
-        self._allow_large = True
+        self.allow_large = True
 
     def get(self, filename):
         """
@@ -101,6 +103,10 @@ class Storage(BaseMongoModel):
         if not self.filesystem.exists(filename=filename):
             raise DocumentNotAvailable("File does not exist in the storage.")
         return File(filename, self.filesystem, self._headermeta)
+
+
+    def check_uid(self):
+        return self._headermeta.check_uid()
 
 
 class File(object):
@@ -144,38 +150,45 @@ class File(object):
         self._filesystem = fs
         # Collection "httpheader"
         self._headers = headermeta
-        # content: instance of Content
-        # TODO: mozna slovnik contentu v ruznych verzich (jak to ukladat? podle
-        # cisla verze nebo jak?)
+        
+        # TODO: mozna slovnik contentu v ruznych verzich
+        # Ukladat se bude vzdycky jen content podle jeho _id, coz uspori to,
+        # ze nebudeme muset z databaze tahat vzdycky cely content, ale staci ziskat
+        # jen z headers info o tom, ktery _id mame tahat. Pokud toto _id uz budeme
+        # mit nacachovane, nemusime ho tahat z db.
         self.content = None
 
-        # TODO: rovnou v konstruktoru volat get_last_version?? Asi ne, radeji lazy
-        
-        # TODO: ukladat do objektu informaci o tom, kdy naposledy se tato URL
-        # kontrolovala? Treba na zaklade toho potom rejectovat dotazy mladsi nez
-        # 10 sekund
-
     def get_content(self):
+        """
+        @TODO: docstring
+        """
         if self.content is None:
             raise ValueError("File has no content.")
         return self.content
 
     def get_version(self, timestamp_or_version):
-        # TODO: check typu timestamp a version
-
-        # TODO: jak to bude s userem tady??
-        # Use cases co se tyce uzivatele: (parove, rozdelit na user-view a global-view)
-        # 1u) Chci vedet, co se zmenilo od toho, kdy jsem tu byl naposledy
-        # 1g) Chci vedet, co se zmenilo od doby, kdy tu nekdo byl
-        # 2u) Chci vedet, jestli se neco zmenilo od doby, kdy jsem to checkoval naposledy
-        # 2g) Chci vedet, jetsli se neco zmenilo od doby, to bylo naposledy (nekym) kontrolovano
-        # =====> Pokud user_id v konstruktoru je None, pak se bere global-view
-
-        h = self._headers.get_by_time(self.filename, timestamp, last_available=True)
-        if h is None:
-            raise DocumentHistoryNotAvaliable("Document %s was not available in time %s" %
-                (self.filename, timestamp))
-        g = self._filesystem.get(_id=h['_id']) # GridOut
+        """
+        @TODO: docstring
+        """
+        if not isinstance(timestamp_or_version, (int, float)):
+            raise TypeError("timestamp_or_version must be float or integer")
+        # version
+        if timestamp_or_version < 10000:
+            h = self._headers.get_by_version(self.filename, timestamp_or_version,
+                                             last_available=True)
+            if h is None:
+                raise DocumentHistoryNotAvaliable("Version %s of document %s is"\
+                    " not available." % (timestamp_or_version, self.filename))
+        # timestamp
+        else:
+            h = self._headers.get_by_time(self.filename, timestamp_or_version,
+                                          last_available=True)
+            if h is None:
+                t = HTTPDateTime().from_timestamp(timestamp_or_version)
+                raise DocumentHistoryNotAvaliable("Version of document %s in time"\
+                " %s is not available." % (self.filename, t.to_httpheader_format()))
+        # GridOut
+        g = self._filesystem.get(h['content'])
         self.content = Content(g)
         return self.content
 
@@ -248,7 +261,7 @@ class Content(Diffable):
         """
         if not isinstance(obj, Content):
             raise TypeError("Diffed object must be an instance of Content")
-        raise NotSupportedYet()
+        raise NotImplementedError()
 
     def _choose_diff_algorithm(self):
         """
@@ -257,7 +270,7 @@ class Content(Diffable):
         @rtype: subclass of diff.DocumentDiff (see diff.py for more)
         """
         # bude navracet PlainTextDiff, BinaryDiff atp.
-        pass
+        raise NotImplementedError()
 
     def __repr__(self):
         return "<Content(_id='%s', content_type='%s', length=%s) at %s>" % \
@@ -268,10 +281,10 @@ class Content(Diffable):
 
 class HttpHeaderMeta(BaseMongoModel):
     """
-    TODO: docstring
+    Model for HTTP header metadata.
     
     header = {
-      timestamp: 13452345646
+      timestamp: 1341161610.287
       response_code: 200
       last_modified: cosi
       etag: P34lkdfk32jrlkjdfpoqi3
@@ -281,6 +294,7 @@ class HttpHeaderMeta(BaseMongoModel):
     }
 
     """
+
     def __init__(self, connection, uid, database):
         self._connection = connection
         # type pymongo.Collection
@@ -289,13 +303,63 @@ class HttpHeaderMeta(BaseMongoModel):
         self.uid = uid
 
     def get_by_time(self, url, timestamp, last_available=False):
+        """
+        @TODO: docstring
+        """
+        q = {"url": url, "timestamp":{"$lt": timestamp}}
+        if self.uid is not None:
+            q["uid"] = self.uid
         if last_available:
-            return self.objects.find_one({"url": url, "uid": self.uid,
-                                          "timestamp":{"$gt": timestamp},
-                                          "response_code":{"$lt":400}})
-        else:
-            return self.objects.find_one({"url": url, "uid": self.uid,
-                                          "timestamp":{"$gt": timestamp}})
+            q["response_code"] = {"$lt":400}
+            q["content"] = {"$exists" : True}
+        try:
+            return self.objects.find(q).sort('timestamp',DESCENDING)[0]
+        except IndexError:
+            return None
 
-    def check_uid(self, uid):
-        pass
+    def get_by_version(self, url, version, last_available=False):
+        """
+        @TODO: docstring
+        """
+        q = {"url": url}
+        if self.uid is not None:
+            q["uid"] = self.uid
+        if last_available:
+            q["response_code"] = {"$lt":400}
+            q["content"] = {"$exists" : True}
+        try:
+            return [x for x in self.objects.find(q).sort('timestamp',ASCENDING)][version]
+        except IndexError:
+            return None
+
+    def save_header(self, url, response_code, fields, content_id):
+        """
+        @TODO: docstring
+        """
+        h = {
+            "timestamp": time.time(),
+            "url": url,
+            "response_code": int(response_code),
+            "content": content_id,
+            "uid": self.uid
+        }
+        for f in fields:
+            if f[0].lower() in ('etag', 'last-modified'):
+                h[f[0].lower().replace("-", "_")] = f[1]
+        return self.objects.save(h)
+
+    def last_checked(self, url):
+        # Pokud vrati None, pak tento zdroj nebyl NIKDY checkovan, coz by se
+        # nemelo moc stavat, protoze vzdy je checknut na zacatku v konstruktoru
+        # MonitoredResource POZOR! je ale mozne, ze se header neulozi, protoze
+        # treba vyprsi timeout.
+        r = self.get_by_time(url, time.time(), last_available=False)
+        if r is None:
+            return None
+        return HTTPDateTime().from_timestamp(r['timestamp'])
+
+    def check_uid(self):
+        assert self.uid is not None
+        return self.objects.find_one({"uid": self.uid}) is not None
+
+
