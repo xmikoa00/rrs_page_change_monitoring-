@@ -24,7 +24,7 @@ class _HTTPConnectionProxy(object):
     Mezivrstva pro pristup k internetu.
     Zde je nutne implementovat:
         - zakladni pripojeni a poslani requestu
-        - moznost pridani ruznych hlavicek (v konstruktoru)
+        - moznost pridani ruznych hlavicek
         - moznost nastaveni timeoutu
         - handlery pro presmerovani
         - handlery pro cookies
@@ -74,6 +74,8 @@ class _HTTPConnectionProxy(object):
         @type url: basestring (str or unicode)
         @param headers: sent HTTP headers (defaults to pretending a web browser)
         @type headers: dict
+        @param max_redirects: sets the maximum number of redirects to be followed
+        @type max_redirects: number (only non-negative integers make sense here)
         @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests) or None telling the document could not be reached
         """
         actual_url = url
@@ -83,7 +85,7 @@ class _HTTPConnectionProxy(object):
         while True:
             splitted_url = urlsplit(actual_url)
 
-
+            # we only check url against the one got from constructor before redirects
             if num_redirects == 0 and splitted_url.netloc != self.netloc:
                 raise ValueError("Net location of the query doesn't match the one this connection was established with")
 
@@ -126,6 +128,7 @@ class _HTTPConnectionProxy(object):
             if response.status == 200:
                 return (retrieved_headers,response.read())
 
+            # perhaps to be changed for 'return None'?
             raise NotImplementedError('Got a HTTP response code signaling neither OK nor redirect not error (%d)' % response.status)
 
 
