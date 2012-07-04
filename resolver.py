@@ -38,8 +38,22 @@ class Resolver(object):
         # - pokud byl proveden redirect, pak musi do Content.urls = [] ulozit obe
         # dve URL adresy (puvodni a redirectnutou)
         # a plno dalsich veci..
+
+#pseudocode
+        # fetch last from DB
+        # ask HEAD
+
+        # decide whether a change occured
+        #   if so -> download
+        #   if can't be told so, download
+        #       and compute our md5 and check based on it
+        #   if certainly not (md5, etag) say "nothing changed"
+
+        # for downloaded, get diff, store it into the DB
+        # and store the recieved headers as well
+# pseudocode end
+
         pass
-        
 
 
 class Rule(object):
