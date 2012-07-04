@@ -51,6 +51,8 @@ class _HTTPConnectionProxy(object):
             "accept-language":"en-US,en;q=0.8",
             "accept-charset":"ISO-8859-1;q=0.7,*;0.3"
         }
+
+    default_max_redirects = 10
         
     def __init__(self,url,timeout=None):
         """
@@ -64,7 +66,7 @@ class _HTTPConnectionProxy(object):
         
                 
 
-    def send_request(self, method, url, headers=default_header):
+    def send_request(self, method, url, headers=default_header, max_redirects=default_max_redirects):
         """
         @param method: HTTP method (GET/HEAD...)
         @type method: str
@@ -72,40 +74,58 @@ class _HTTPConnectionProxy(object):
         @type url: basestring (str or unicode)
         @param headers: sent HTTP headers (defaults to pretending a web browser)
         @type headers: dict
-        @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests)
+        @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests) or None telling the document could not be reached
         """
-        splitted_url = urlsplit(url)
-        if splitted_url.netloc != self.netloc:
-            raise ValueError("Net location of the query doesn't match the one this connection was established with")
+        actual_url = url
+        num_redirects = 0
 
-        # we are a connection for every single request to avoid problems with reuse
-        if self.timeout != None:
-            conn = httplib.HTTPConnection(self.netloc, timeout=self.timeout)
-        else:
-            conn = httplib.HTTPConnection(self.netloc)
+        # loop handling redirects
+        while True:
+            splitted_url = urlsplit(actual_url)
 
-        # build a path identifying a file on the server
-        req_url = splitted_url.path
-        if splitted_url.query:
-            req_url += '?' + splitted_url.query
-
-        try:
-            conn.request(method, req_url, headers=headers)
-        except socket.timeout as e:
-            print "Timeout (%s)" % (e)
-            return None
+            
+            if num_redirects == 0 and splitted_url.netloc != self.netloc:
+                raise ValueError("Net location of the query doesn't match the one this connection was established with")
+    
+            # we are making connection for every single request to avoid problems with reuse
+            if self.timeout != None:
+                conn = httplib.HTTPConnection(splitted_url.netloc, timeout=self.timeout)
+            else:
+                conn = httplib.HTTPConnection(splitted_url.netloc)
+    
+            # build a path identifying a file on the server
+            req_url = splitted_url.path
+            if splitted_url.query:
+                req_url += '?' + splitted_url.query
+    
+            try:
+                conn.request(method, req_url, headers=headers)
+            except socket.timeout as e:
+                print "Timeout (%s)" % (e)
+                return None
+            
+            response = conn.getresponse()
+            if response.status >= 400:
+                return None
         
-        response = conn.getresponse()
-        if response.status >= 400:
-            return None
+            # get headers from response and build a dict from them
+            retrieved_headers = {}
+            for header_tuple in response.getheaders():
+                retrieved_headers[header_tuple[0]] = header_tuple[1]
+            
+            if response.status in [301,302,303]:
+                if 'location' in retrieved_headers and num_redirects < max_redirects:
+                    actual_url = retrieved_headers['location']
+                    num_redirects += 1
+                    continue
+                else:
+                    return None
 
+            if response.status == 200:
+                return (retrieved_headers,response.read())
 
-        # get headers from response and build a dict from them
-        retrieved_headers = {}
-        for header_tuple in response.getheaders():
-            retrieved_headers[header_tuple[0]] = header_tuple[1]
+            raise NotImplementedError('Got a HTTP response code signaling neither OK nor redirect not error (%d)' % response.status)
 
-        return (retrieved_headers,response.read())
 
 class HTTPDateTime(object):
     """
