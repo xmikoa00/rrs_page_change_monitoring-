@@ -17,6 +17,7 @@ from datetime import datetime
 import time
 import httplib
 from urlparse import urlsplit
+import socket
 
 class _HTTPConnectionProxy(object):
     """
@@ -37,10 +38,35 @@ class _HTTPConnectionProxy(object):
 
     Navrhovy vzor: Proxy pattern.
     """
-    def __init__(self):
-        pass
 
-    def send_request(self, method, url, headers, timeout):
+    #pretending a proper web browser
+    #1-1 copy of headers sent by Google Chrome run on Ubuntu Linux
+    default_header = {
+            "connection":"keep-alive",
+            "cache-control":"max-age=0",
+            "user-agent":"Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0",
+            "accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "accept-encoding":"gzip,deflate,sdch",
+            "accept-language":"en-US,en;q=0.8",
+            "accept-charset":"ISO-8859-1;q=0.7,*;0.3"
+        }
+        
+    def __init__(self,url,timeout=None):
+        """
+        @param url: requested URL (only server name is taken in account now, but full is required)
+        @type url: basestring
+        @param timeout: timeout applied to requests in this connection (None sets default from httplib)
+        @type timeout: number
+        """
+        self.netloc = urlsplit(url).netloc
+        if timeout != None:
+            self.conn = httplib.HTTPConnection(self.netloc, timeout=timeout)
+        else:
+            self.conn = httplib.HTTPConnection(self.netloc)
+        
+                
+
+    def send_request(self, method, url, headers=default_header):
         """
         @param method: HTTP method (GET/HEAD...)
         @type method: str
@@ -48,26 +74,32 @@ class _HTTPConnectionProxy(object):
         @type url: basestring (str or unicode)
         @param headers: sent HTTP headers
         @type headers: dict
-        @returns: ??
+        @returns: dictionary of retrieved headers or None if none arrived
         """
-        #splitted_url = urlsplit(url)
-        #conn = httplib.HTTPConnection(splitted_url.netloc, timeout=timeout)
-        # user agent has to be some valid web browser
-        # thus we lie about ourselves, but it is the only way how to get results
-        #_ua = 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.19) Gecko/2010040116 Ubuntu/9.04 (jaunty) Firefox/3.0.19'
-        #headers = {"Connection": "close",
-        #           "User-Agent": _ua}
-        #req_url = splitted_url.path
-        #if splitted_url.query:
-        #    req_url += '?' + splitted_url.query
-        #try:
-        #    conn.request("HEAD", req_url, headers=headers)
-        #    # get headers from response
-        #    return conn.getresponse().getheaders()
-        #except socket.timeout:
-        #    return None
-        #except IOError:
-        #    return None
+        self.splitted_url = urlsplit(url)
+        if self.splitted_url.netloc != self.netloc:
+            raise ValueError("Net location of the query doesn't match the one\
+                this connection was established with")
+
+        req_url = self.splitted_url.path
+        if self.splitted_url.query:
+            req_url += '?' + self.splitted_url.query
+        print req_url
+
+        try:
+            self.conn.request(method, req_url, headers=headers)
+            # get headers from response and build a dict from them
+            self.retrieved_headers = {}
+            for header_tuple in self.conn.getresponse().getheaders():
+                self.retrieved_headers[header_tuple[0]] = header_tuple[1]
+
+            return self.retrieved_headers
+        except socket.timeout as e:
+            print "Timeout (%s)" % (e)
+            return None
+        except IOError as e:
+            print "IOError (%s)" % (e)
+            return None
         pass
 
 
