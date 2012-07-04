@@ -39,30 +39,28 @@ class _HTTPConnectionProxy(object):
     Navrhovy vzor: Proxy pattern.
     """
 
-    #pretending a proper web browser
-    #1-1 copy of headers sent by Google Chrome run on Ubuntu Linux
+    # pretending a proper web browser
+    # 1-1 copy of headers sent by Google Chrome run on Ubuntu Linux
+    # only 'accept-encoding' was changed in order not to be bothered with decompression
     default_header = {
             "connection":"keep-alive",
             "cache-control":"max-age=0",
             "user-agent":"Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0",
             "accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "accept-encoding":"gzip,deflate,sdch",
+            "accept-encoding":"identity",
             "accept-language":"en-US,en;q=0.8",
             "accept-charset":"ISO-8859-1;q=0.7,*;0.3"
         }
         
     def __init__(self,url,timeout=None):
         """
-        @param url: requested URL (only server name is taken in account now, but full is required)
+        @param url: requested URL (only server name is taken in account now)
         @type url: basestring
-        @param timeout: timeout applied to requests in this connection (None sets default from httplib)
+        @param timeout: timeout applied to requests in this connection (None sets default from httplib/socket)
         @type timeout: number
         """
         self.netloc = urlsplit(url).netloc
-        if timeout != None:
-            self.conn = httplib.HTTPConnection(self.netloc, timeout=timeout)
-        else:
-            self.conn = httplib.HTTPConnection(self.netloc)
+        self.timeout = timeout
         
                 
 
@@ -70,38 +68,44 @@ class _HTTPConnectionProxy(object):
         """
         @param method: HTTP method (GET/HEAD...)
         @type method: str
-        @param url: requested URL
+        @param url: requested URL (net location must not differ from the one passed to the constructor)
         @type url: basestring (str or unicode)
-        @param headers: sent HTTP headers
+        @param headers: sent HTTP headers (defaults to pretending a web browser)
         @type headers: dict
-        @returns: dictionary of retrieved headers or None if none arrived
+        @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests)
         """
-        self.splitted_url = urlsplit(url)
-        if self.splitted_url.netloc != self.netloc:
-            raise ValueError("Net location of the query doesn't match the one\
-                this connection was established with")
+        splitted_url = urlsplit(url)
+        if splitted_url.netloc != self.netloc:
+            raise ValueError("Net location of the query doesn't match the one this connection was established with")
 
-        req_url = self.splitted_url.path
-        if self.splitted_url.query:
-            req_url += '?' + self.splitted_url.query
-        print req_url
+        # we are a connection for every single request to avoid problems with reuse
+        if self.timeout != None:
+            conn = httplib.HTTPConnection(self.netloc, timeout=self.timeout)
+        else:
+            conn = httplib.HTTPConnection(self.netloc)
+
+        # build a path identifying a file on the server
+        req_url = splitted_url.path
+        if splitted_url.query:
+            req_url += '?' + splitted_url.query
 
         try:
-            self.conn.request(method, req_url, headers=headers)
-            # get headers from response and build a dict from them
-            self.retrieved_headers = {}
-            for header_tuple in self.conn.getresponse().getheaders():
-                self.retrieved_headers[header_tuple[0]] = header_tuple[1]
-
-            return self.retrieved_headers
+            conn.request(method, req_url, headers=headers)
         except socket.timeout as e:
             print "Timeout (%s)" % (e)
             return None
-        except IOError as e:
-            print "IOError (%s)" % (e)
+        
+        response = conn.getresponse()
+        if response.status >= 400:
             return None
-        pass
 
+
+        # get headers from response and build a dict from them
+        retrieved_headers = {}
+        for header_tuple in response.getheaders():
+            retrieved_headers[header_tuple[0]] = header_tuple[1]
+
+        return (retrieved_headers,response.read())
 
 class HTTPDateTime(object):
     """
