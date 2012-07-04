@@ -76,7 +76,7 @@ class _HTTPConnectionProxy(object):
         @type headers: dict
         @param max_redirects: sets the maximum number of redirects to be followed
         @type max_redirects: number (only non-negative integers make sense here)
-        @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests) or None telling the document could not be reached
+        @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests) and (final URL) or None telling the document could not be reached
         """
         actual_url = url
         num_redirects = 0
@@ -124,9 +124,9 @@ class _HTTPConnectionProxy(object):
                 else:
                     return None
 
-            # only "succesful" exit point of the loop
+            # only "succesful" exit point of the loop and thus the whole method
             if response.status == 200:
-                return (retrieved_headers,response.read())
+                return (retrieved_headers,response.read(),actual_url)
 
             # perhaps to be changed for 'return None'?
             raise NotImplementedError('Got a HTTP response code signaling neither OK nor redirect not error (%d)' % response.status)
