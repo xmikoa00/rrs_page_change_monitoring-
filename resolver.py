@@ -53,23 +53,23 @@ class Resolver(object):
         # for downloaded, get diff, store it into the DB
         # and store the recieved headers as well
 # pseudocode end
-        db_metainfo = _get_metainfo_from_db(url):
+        db_metainfo = self._get_metainfo_from_db(url)
         print db_metainfo
 
         pass
 
 
-    def _get_metainfo_from_db(self, url)
-    """
-    Returns last metainfo upon the given url stored in the DB.
-    """
+    def _get_metainfo_from_db(self, url):
+        """
+        Returns last metainfo upon the given url stored in the DB.
+        """
         mockup = {
-            filename : 'http://www.aquafortis.cz/trenink.html',
-            md5 : "abcdef123456789",
-            sha1 : "12345678890abcde",
-            content_type : "idk",
-            length : 1274
-            urls : ['http://www.aquafortis.cz/trenink.html']
+            'filename' : 'http://www.aquafortis.cz/trenink.html',
+            'md5' : "abcdef123456789",
+            'sha1' : "12345678890abcde",
+            'content_type' : "idk",
+            'length' : 1274,
+            'urls' : ['http://www.aquafortis.cz/trenink.html']
         }
 
         return mockup
