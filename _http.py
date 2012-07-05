@@ -124,7 +124,7 @@ class _HTTPConnectionProxy(object):
                 else:
                     return None
 
-            # only "succesful" exit point of the loop and thus the whole method
+            # only "succesful" exit point of the loop and thus of the whole method
             if response.status == 200:
                 return (retrieved_headers,response.read(),actual_url)
 
