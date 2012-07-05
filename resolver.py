@@ -6,7 +6,7 @@ __author__ = "Stanislav Heller"
 __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__ = "$25.6.2012 12:12:44$"
 
-
+import _http
 
 class Resolver(object):
     """
@@ -55,6 +55,21 @@ class Resolver(object):
 
         pass
 
+
+    def _get_metainfo_from_db(self, url)
+    """
+    Returns last metainfo upon the given url stored in the DB.
+    """
+        mockup = {
+            filename : 'http://www.aquafortis.cz/trenink.html',
+            md5 : "abcdef123456789",
+            sha1 : "12345678890abcde",
+            content_type : "idk",
+            length : 1274
+            urls : ['http://www.aquafortis.cz/trenink.html']
+        }
+
+        return mockup
 
 class Rule(object):
     """
