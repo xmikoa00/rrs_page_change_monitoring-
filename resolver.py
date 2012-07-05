@@ -63,27 +63,46 @@ class Resolver(object):
         if web_metainfo == None:
             return "Currently not accesible"
 
-        if db_metainfo['etag'] == web_metainfo[0]['etag']:
-            return "Nothing changed"
+        try:
+            if db_metainfo['etag'] == web_metainfo[0]['etag']:
+                return "Nothing changed (etags equal)"
+        except KeyError:
+            pass
 
-        return "I think they are differnt, therefore I will store new version"
+        try:
+            if web_metainfo['content-md5'] == db_metainfo['content']['md5']:
+                return "Nothing changed (md5 equal)"
+        except KeyError:
+            pass
+
+
+        return "I think they are different, therefore I will store new version"
         pass
 
     def _get_metainfo_from_db(self, url):
         """
         Returns last metainfo upon the given url stored in the DB.
         """
-        mockup = {
+        mockup_content = {
+            'filename': "http://www.aquafortis.cz/trenink.html",
+            'md5': 'eine schessende summe',
+            'sha1': 'nachste',
+            'content_type': '',
+            'length': 1234,
+            'urls' : ['http://www.aquafortis.cz/trenink.html']
+        }
+
+        mockup_header = {
           'timestamp': 1341161610.287,
           'response_code': 200,
           'last_modified': 'cosi',
           'etag': '"928169-529-4bf6382fb08c0"',
           'uid': "rrs_university",
           'url+index': "http://www.cosi.cz",
-          'content': 123  # object_id
+          'content': mockup_content  # object_id
         }
 
-        return mockup
+        return mockup_header
 
 class Rule(object):
     """
