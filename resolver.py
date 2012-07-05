@@ -21,13 +21,14 @@ class Resolver(object):
     """
     def __init__(self, storage):
         # Storage
-        self._storage = storage
+#?        self._storage = storage
         # are large documents allowed?
-        self._allow_large = self._storage.allow_large
+#?        self._allow_large = self._storage.allow_large
         # GridFS
-        self._filesystem = storage.filesystem
+#?        self._filesystem = storage.filesystem
         # Collection "httpheader"
-        self._headers = storage._headermeta
+#?        self._headers = storage._headermeta
+        pass
 
     def resolve(self, url):
         # Tady bude asi ta nejvetsi magie z celeho systemu
@@ -52,6 +53,8 @@ class Resolver(object):
         # for downloaded, get diff, store it into the DB
         # and store the recieved headers as well
 # pseudocode end
+        db_metainfo = _get_metainfo_from_db(url):
+        print db_metainfo
 
         pass
 
