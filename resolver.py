@@ -54,7 +54,10 @@ class Resolver(object):
         # and store the recieved headers as well
 # pseudocode end
         db_metainfo = self._get_metainfo_from_db(url)
-        print db_metainfo
+        conn_proxy = _http._HTTPConnectionProxy('http://www.aquafortis.cz')
+        web_metainfo = conn_proxy.send_request("HEAD",'http://www.aquafortis.cz')
+
+        print web_metainfo
 
         pass
 
