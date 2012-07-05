@@ -54,25 +54,33 @@ class Resolver(object):
         # and store the recieved headers as well
 # pseudocode end
         db_metainfo = self._get_metainfo_from_db(url)
-        conn_proxy = _http._HTTPConnectionProxy('http://www.aquafortis.cz')
-        web_metainfo = conn_proxy.send_request("HEAD",'http://www.aquafortis.cz')
+        conn_proxy = _http._HTTPConnectionProxy(url)
+        web_metainfo = conn_proxy.send_request("HEAD",url)
 
+        print db_metainfo
         print web_metainfo
 
-        pass
+        if web_metainfo == None:
+            return "Currently not accesible"
 
+        if db_metainfo['etag'] == web_metainfo[0]['etag']:
+            return "Nothing changed"
+
+        return "I think they are differnt, therefore I will store new version"
+        pass
 
     def _get_metainfo_from_db(self, url):
         """
         Returns last metainfo upon the given url stored in the DB.
         """
         mockup = {
-            'filename' : 'http://www.aquafortis.cz/trenink.html',
-            'md5' : "abcdef123456789",
-            'sha1' : "12345678890abcde",
-            'content_type' : "idk",
-            'length' : 1274,
-            'urls' : ['http://www.aquafortis.cz/trenink.html']
+          'timestamp': 1341161610.287,
+          'response_code': 200,
+          'last_modified': 'cosi',
+          'etag': '"928169-529-4bf6382fb08c0"',
+          'uid': "rrs_university",
+          'url+index': "http://www.cosi.cz",
+          'content': 123  # object_id
         }
 
         return mockup
