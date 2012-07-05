@@ -7,6 +7,8 @@ __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__ = "$25.6.2012 12:12:44$"
 
 import _http
+import hashlib
+
 
 class Resolver(object):
     """
@@ -70,11 +72,31 @@ class Resolver(object):
             pass
 
         try:
-            if web_metainfo['content-md5'] == db_metainfo['content']['md5']:
+            if web_metainfo[0]['content-md5'] == db_metainfo['content']['md5']:
                 return "Nothing changed (md5 equal)"
         except KeyError:
             pass
 
+
+        # etag and md5checksum are the only authoritave evidents of 'it has not changed'
+        # therefore, now is the time to download the content
+
+        web_full_info = conn_proxy.send_request("GET",url)
+        if web_full_info == None:
+            return "Pruuser, HEAD prosel, GET uz ne"
+
+        mdfiver = hashlib.md5()
+        mdfiver.update(web_full_info[1])
+        md5 = mdfiver.hexdigest()
+        print "md5: " + md5
+
+        shaoner = hashlib.sha1()
+        shaoner.update(web_full_info[1])
+        sha1 = shaoner.hexdigest()
+        print "sha1: " + sha1
+
+        if md5 == db_metainfo['content']['md5'] and sha1 == db_metainfo['content']['sha1']:
+            return "Nothing changed (md5 and sha1 equal)"
 
         return "I think they are different, therefore I will store new version"
         pass
@@ -85,8 +107,8 @@ class Resolver(object):
         """
         mockup_content = {
             'filename': "http://www.aquafortis.cz/trenink.html",
-            'md5': 'eine schessende summe',
-            'sha1': 'nachste',
+            'md5': '233fde7ca8a474f4cc7a198ba87822ff',
+            'sha1': 'b2e4bce03a0578da5fd9e83b28acac819f365bda',
             'content_type': '',
             'length': 1234,
             'urls' : ['http://www.aquafortis.cz/trenink.html']
