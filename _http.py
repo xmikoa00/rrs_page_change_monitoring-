@@ -76,7 +76,10 @@ class _HTTPConnectionProxy(object):
         @type headers: dict
         @param max_redirects: sets the maximum number of redirects to be followed
         @type max_redirects: number (only non-negative integers make sense here)
-        @returns: tuple of (dictionary of retrieved headers or None if none arrived) and (string containing body of the response -- empty for HEAD requests) and (final URL) or None telling the document could not be reached
+        @returns: 4-tuple of (response code recieved from the (last in case\
+of redirection) server) and (dictionary of retrieved headers or None if none\
+arrived) and (string containing body of the response -- empty for HEAD\
+requests) and (final URL).  
         """
         actual_url = url
         num_redirects = 0
@@ -89,7 +92,9 @@ class _HTTPConnectionProxy(object):
             if num_redirects == 0 and splitted_url.netloc != self.netloc:
                 raise ValueError("Net location of the query doesn't match the one this connection was established with")
 
-            # we are making connection for every single request to avoid problems with reuse
+            # we are making connection for every single request to avoid
+            # problems with reuse. Actually it is neccessary for following
+            # redirects.
             if self.timeout != None:
                 conn = httplib.HTTPConnection(splitted_url.netloc, timeout=self.timeout)
             else:
@@ -105,15 +110,16 @@ class _HTTPConnectionProxy(object):
             except socket.timeout as e:
                 print "Timeout (%s)" % (e)
                 return None
-
             response = conn.getresponse()
-            if response.status >= 400:
-                return None
-
+            
             # get headers from response and build a dict from them
             retrieved_headers = {}
             for header_tuple in response.getheaders():
                 retrieved_headers[header_tuple[0]] = header_tuple[1]
+
+            if response.status >= 400:
+                return (response.status, retrieved_headers, response.read(), actual_url)
+
 
             # following redirections
             if response.status in [301,302,303]:
@@ -122,14 +128,14 @@ class _HTTPConnectionProxy(object):
                     num_redirects += 1
                     continue
                 else:
-                    return None
+                    return (response.status, retrieved_headers, response.read(), actual_url)
 
             # only "succesful" exit point of the loop and thus of the whole method
             if response.status == 200:
-                return (retrieved_headers,response.read(),actual_url)
+                return (response.status, retrieved_headers, response.read(), actual_url)
 
-            # perhaps to be changed for 'return None'?
-            raise NotImplementedError('Got a HTTP response code signaling neither OK nor redirect not error (%d)' % response.status)
+            # an unknown response code
+            return (response.status, retrieved_headers, response.read(), actual_url)
 
 
 class HTTPDateTime(object):

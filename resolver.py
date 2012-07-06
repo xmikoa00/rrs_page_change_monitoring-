@@ -66,32 +66,34 @@ class Resolver(object):
             return "Currently not accesible"
 
         try:
-            if db_metainfo['etag'] == web_metainfo[0]['etag']:
+            if db_metainfo['etag'] == web_metainfo[1]['etag']:
                 return "Nothing changed (etags equal)"
         except KeyError:
             pass
 
         try:
-            if web_metainfo[0]['content-md5'] == db_metainfo['content']['md5']:
+            if web_metainfo[1]['content-md5'] == db_metainfo['content']['md5']:
                 return "Nothing changed (md5 equal)"
         except KeyError:
             pass
 
 
-        # etag and md5checksum are the only authoritave evidents of 'it has not changed'
+        # etag and content-md5 are the only authoritave evidents of 'it has not changed'
         # therefore, now is the time to download the content
 
         web_full_info = conn_proxy.send_request("GET",url)
         if web_full_info == None:
             return "Pruuser, HEAD prosel, GET uz ne"
 
+        print "header: " + web_full_info[1]['content-length'] + ", len(): " + str(len(web_full_info[2]))
+
         mdfiver = hashlib.md5()
-        mdfiver.update(web_full_info[1])
+        mdfiver.update(web_full_info[2])
         md5 = mdfiver.hexdigest()
         print "md5: " + md5
 
         shaoner = hashlib.sha1()
-        shaoner.update(web_full_info[1])
+        shaoner.update(web_full_info[2])
         sha1 = shaoner.hexdigest()
         print "sha1: " + sha1
 
@@ -100,6 +102,30 @@ class Resolver(object):
 
         return "I think they are different, therefore I will store new version"
         pass
+
+    def _store_into_db(self, metainfo, content):
+        """
+        Stores metainfo (and content) in the storage.
+        """
+        if new_content:
+            content = {
+                'filename':'',
+                'md5':'',
+                'sha1':'',
+                'content_type':'',
+                'length':'',
+                'urls':[],
+            }
+
+        new_header = {
+            'timestamp':'',
+            'response_code':'',
+            'last-modified':'',
+            'etag':'',
+            'uid':'',
+            'url+index':'',
+            'content':content
+        }
 
     def _get_metainfo_from_db(self, url):
         """
