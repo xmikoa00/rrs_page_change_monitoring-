@@ -62,7 +62,7 @@ class Storage(BaseMongoModel):
     def __init__(self, connection, uid, database="webarchive"):
         """
         Initializes storage.
-        
+
         @param connection: database connection
         @type connection: pymongo.Connection
         @param uid: user id (see Monitor.__doc__ for more info)
@@ -150,7 +150,7 @@ class File(object):
         self._filesystem = fs
         # Collection "httpheader"
         self._headers = headermeta
-        
+
         # TODO: mozna slovnik contentu v ruznych verzich
         # Ukladat se bude vzdycky jen content podle jeho _id, coz uspori to,
         # ze nebudeme muset z databaze tahat vzdycky cely content, ale staci ziskat
@@ -241,7 +241,7 @@ class Content(Diffable):
         if not isinstance(gridout, GridOut):
             raise TypeError("gridout has to be instance of GridOut class.")
         self._gridout = gridout
-        
+
     def __getattr__(self, name):
         try:
             return getattr(self._gridout, name)
@@ -253,7 +253,7 @@ class Content(Diffable):
         Creates diff of self and given Content object and returns unicode string
         representing the computed diff:
         $ diff-algo self obj
-        
+
         @param obj: diffed content
         @type obj: Content
         @returns: computed diff
@@ -282,7 +282,7 @@ class Content(Diffable):
 class HttpHeaderMeta(BaseMongoModel):
     """
     Model for HTTP header metadata.
-    
+
     header = {
       timestamp: 1341161610.287
       response_code: 200
