@@ -16,6 +16,7 @@ __date__  = "$23.6.2012 16:33:31$"
 import time
 
 from pymongo import Connection, ASCENDING, DESCENDING
+from bson import ObjectId
 from gridfs import GridFS
 from gridfs.grid_file import GridOut
 
@@ -109,6 +110,48 @@ class Storage(BaseMongoModel):
         return self._headermeta.check_uid()
 
 
+class _ContentCache(object):
+    """
+    A small app-specific key-value cache for storing readable objects.
+
+    Main feature:
+        - iterable read(): when getting the stored object from the cache,
+                           it will check if the readable object is at the end.
+                           If yes, seeks to the beginning.
+        - refreshable: calling refresh() method deletes all integer-key values
+                       from the cache.
+    """
+    def __init__(self):
+        self.__contents = {}
+
+    def __getitem__(self, key):
+        try:
+            c = self.__contents[key]
+        except KeyError:
+            raise LookupError("No such content in the cache.")
+        # if fd is at the end, seek to beginning
+        if c.tell() == c.length:
+            c.seek(0)
+        return c
+
+    def __setitem__(self, key, value):
+        self.__contents[key] = value
+
+    def __contains__(self, key):
+        return key in self.__contents
+
+    def __iter__(self):
+        for x in self.__contents:
+            yield x
+
+    def refresh(self):
+        for version in filter(lambda x: isinstance(x, int), self.__contents.keys()):
+            del self.__contents[version]
+
+    def purge(self):
+        self.__contents = {}
+
+
 class File(object):
     """
     One file in filesystem. A file can contain more contents in various
@@ -151,34 +194,66 @@ class File(object):
         # Collection "httpheader"
         self._headers = headermeta
         
-        # TODO: mozna slovnik contentu v ruznych verzich
-        # Ukladat se bude vzdycky jen content podle jeho _id, coz uspori to,
-        # ze nebudeme muset z databaze tahat vzdycky cely content, ale staci ziskat
-        # jen z headers info o tom, ktery _id mame tahat. Pokud toto _id uz budeme
-        # mit nacachovane, nemusime ho tahat z db.
-        self.content = None
+        # ulozeno vzdy jednak pod _id a po verzemi -1,-2,-3 pokud se uzivatel
+        # ptal  na verzi
+        self.content = _ContentCache()
 
-    def get_content(self):
+    def purge_cache(self):
         """
-        @TODO: docstring
+        Cleans the whole content cache.
         """
-        if self.content is None:
-            raise ValueError("File has no content.")
-        return self.content
+        self.content.purge()
+
+    def refresh_cache(self):
+        """
+        Refreshes part of cache, which can potentionally change (version pointers).
+        This is very useful if we expect the File object to live during more than
+        one check() call. If so, the information about version has to be updated
+        in the cache (version -1 becomes -2 etc.).
+        
+        This method should be called after every check() call!
+        """
+        self.content.refresh()
 
     def get_version(self, timestamp_or_version):
         """
-        @TODO: docstring
+        Get content of the file in specific version. Version can be specified
+        by version number (convenience atop the GridFS API by MongoDB) or
+        unix timestamp.
+
+        @param timestamp_or_version: version or timestamp of version which we
+                                     want to retrieve.
+        @type timestamp_or_version: int
+        @return: content of the file in specified time/version
+        @rtype: Content
+        @raises: DocumentHistoryNotAvaliable if no such version in database
         """
         if not isinstance(timestamp_or_version, (int, float)):
             raise TypeError("timestamp_or_version must be float or integer")
+
         # version
         if timestamp_or_version < 10000:
+
+            # try to get content from cache by version
+            if timestamp_or_version in self.content:
+                return self.content[timestamp_or_version]
+
             h = self._headers.get_by_version(self.filename, timestamp_or_version,
                                              last_available=True)
             if h is None:
                 raise DocumentHistoryNotAvaliable("Version %s of document %s is"\
                     " not available." % (timestamp_or_version, self.filename))
+
+            # try to get content from cache by content ID
+            content_id = h['content'] # ObjectiId
+            if content_id in self.content:
+                return self.content[content_id]
+
+            # otherwise load content from db
+            g = self._filesystem.get(content_id) # GridOut
+            # cache it
+            r = self.content[content_id] = self.content[timestamp_or_version] = Content(g)
+
         # timestamp
         else:
             h = self._headers.get_by_time(self.filename, timestamp_or_version,
@@ -187,10 +262,19 @@ class File(object):
                 t = HTTPDateTime().from_timestamp(timestamp_or_version)
                 raise DocumentHistoryNotAvaliable("Version of document %s in time"\
                 " %s is not available." % (self.filename, t.to_httpheader_format()))
-        # GridOut
-        g = self._filesystem.get(h['content'])
-        self.content = Content(g)
-        return self.content
+
+            # try to get content from cache by content ID
+            content_id = h['content'] # ObjectiId
+            if content_id in self.content:
+                return self.content[content_id]
+
+            # otherwise load content from db
+            content_id = h['content'] # ObjectiId
+            g = self._filesystem.get(content_id) # GridOut
+            r = self.content[content_id] = Content(g) # cache it
+        
+        # return the content, which was requested
+        return r
 
     def get_last_version(self):
         """
@@ -199,15 +283,13 @@ class File(object):
         @returns: most recent content of the file which is on the storage.
         @rtype: Content
         """
+        # try to get content from cache by version -1
+        if -1 in self.content:
+            return self.content[-1]
+        # if not cached, fetch it from db and store to cache
         g = self._filesystem.get_last_version(self.filename)
-        self.content = Content(g)
-        return self.content
-
-    def get_older_version(self):
-        raise NotSupportedYet()
-
-    def get_newer_version(self):
-        raise NotSupportedYet()
+        r = self.content[-1] = self.content[g._id] = Content(g)
+        return r
 
 
 class Diffable(object):
@@ -241,6 +323,7 @@ class Content(Diffable):
         if not isinstance(gridout, GridOut):
             raise TypeError("gridout has to be instance of GridOut class.")
         self._gridout = gridout
+        self._differ = self._choose_diff_algorithm()
         
     def __getattr__(self, name):
         try:
@@ -248,20 +331,20 @@ class Content(Diffable):
         except AttributeError:
             raise AttributeError("Content object has no attribute %s" % name)
 
-    def diff_to(self, obj):
+    def diff_to(self, other):
         """
         Creates diff of self and given Content object and returns unicode string
         representing the computed diff:
         $ diff-algo self obj
         
-        @param obj: diffed content
-        @type obj: Content
+        @param other: diffed content
+        @type other: Content
         @returns: computed diff
         @rtype: unicode
         """
-        if not isinstance(obj, Content):
+        if not isinstance(other, Content):
             raise TypeError("Diffed object must be an instance of Content")
-        raise NotImplementedError()
+        return self._differ.diff(self.read(), other.read())
 
     def _choose_diff_algorithm(self):
         """
@@ -270,7 +353,11 @@ class Content(Diffable):
         @rtype: subclass of diff.DocumentDiff (see diff.py for more)
         """
         # bude navracet PlainTextDiff, BinaryDiff atp.
-        raise NotImplementedError()
+        type_ = self._gridout.content_type
+        if type_.split('/')[0] == 'text':
+            return PlainTextDiff
+        else:
+            return BinaryDiff
 
     def __repr__(self):
         return "<Content(_id='%s', content_type='%s', length=%s) at %s>" % \
