@@ -20,7 +20,7 @@ from bson import ObjectId
 from gridfs import GridFS
 from gridfs.grid_file import GridOut
 
-from diff import PlainTextDiff, BinaryDiff
+from diff import PlainTextDiff, BinaryDiff, HtmlDiff
 from errors import *
 from _http import HTTPDateTime
 
@@ -279,17 +279,13 @@ class File(object):
     def get_last_version(self):
         """
         Loads the last version of the file which is available on the storage.
+        If the monitor is in user-view mode, loads last version, which was
+        checked by specified user.
 
         @returns: most recent content of the file which is on the storage.
         @rtype: Content
         """
-        # try to get content from cache by version -1
-        if -1 in self.content:
-            return self.content[-1]
-        # if not cached, fetch it from db and store to cache
-        g = self._filesystem.get_last_version(self.filename)
-        r = self.content[-1] = self.content[g._id] = Content(g)
-        return r
+        return self.get_version(-1)
 
 
 class Diffable(object):
@@ -353,9 +349,13 @@ class Content(Diffable):
         @rtype: subclass of diff.DocumentDiff (see diff.py for more)
         """
         # bude navracet PlainTextDiff, BinaryDiff atp.
-        type_ = self._gridout.content_type
-        if type_.split('/')[0] == 'text':
-            return PlainTextDiff
+        assert '/' in self._gridout.content_type
+        type_, subtype = self._gridout.content_type.split('/')
+        if type_ == 'text':
+            if subtype == 'html':
+                return HtmlDiff
+            else:
+                return PlainTextDiff
         else:
             return BinaryDiff
 
@@ -415,6 +415,8 @@ class HttpHeaderMeta(BaseMongoModel):
             q["response_code"] = {"$lt":400}
             q["content"] = {"$exists" : True}
         try:
+            # TODO: tento dotaz vyoptimalizovat aby se nemusely tahat vsechny headery z db
+            # pouziti skrip() a limit()
             return [x for x in self.objects.find(q).sort('timestamp',ASCENDING)][version]
         except IndexError:
             return None

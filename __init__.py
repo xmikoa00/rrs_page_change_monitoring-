@@ -35,6 +35,8 @@ from resolver import Resolver
 from _http import HTTPDateTime
 from errors import *
 
+__all__ = ["Monitor", "MonitoredResource", "HTTPDateTime"]
+
 # constant defining the size of file, which is supposed to be "large"
 # for more info see Monitor.allow_large_docuements.__doc__
 LARGE_DOCUMENT_SIZE = 4096
