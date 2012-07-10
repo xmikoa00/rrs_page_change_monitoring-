@@ -79,7 +79,7 @@ class _HTTPConnectionProxy(object):
         @returns: 4-tuple of (response code recieved from the (last in case\
 of redirection) server) and (dictionary of retrieved headers or None if none\
 arrived) and (string containing body of the response -- empty for HEAD\
-requests) and (final URL).  
+requests) and (final URL).
         """
         actual_url = url
         num_redirects = 0
@@ -108,10 +108,13 @@ requests) and (final URL).
             try:
                 conn.request(method, req_url, headers=headers)
             except socket.timeout as e:
-                print "Timeout (%s)" % (e)
+#?                print "Timeout (%s)" % (e)
+                return None
+            except socket.error as e:
+#?                print "A socket error(%s)" % (e)
                 return None
             response = conn.getresponse()
-            
+
             # get headers from response and build a dict from them
             retrieved_headers = {}
             for header_tuple in response.getheaders():

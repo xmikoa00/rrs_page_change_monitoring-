@@ -21,7 +21,7 @@ class Resolver(object):
     changed(HTTP:response code) -> it depends..
     changed(HTTP:last-modified) -> doesn't matter
     """
-    def __init__(self, storage):
+    def __init__(self, storage, timeout = 10):
         # Storage
 #?        self._storage = storage
         # are large documents allowed?
@@ -30,6 +30,7 @@ class Resolver(object):
 #?        self._filesystem = storage.filesystem
         # Collection "httpheader"
 #?        self._headers = storage._headermeta
+        self._timeout = timeout
         pass
 
     def resolve(self, url):
@@ -62,7 +63,7 @@ class Resolver(object):
 
     def _make_decision(self, url):
         self.db_metainfo = self._get_metainfo_from_db(url)
-        conn_proxy = _http._HTTPConnectionProxy(url,timeout = 10)
+        conn_proxy = _http._HTTPConnectionProxy(url,self._timeout)
         self.web_metainfo = conn_proxy.send_request("HEAD",url)
 
         store_decision = (0,"Store both header and content")
@@ -119,8 +120,18 @@ class Resolver(object):
         """
         Stores metainfo (and content) in the storage.
         """
-        if store_decision[0] > -1:
-            print store_decision[1]
+        if store_decision[0] == 0:
+            pass
+            # store both headers and content
+        elif store_decision[0] == 1:
+            pass
+            # store headers only
+        elif store_decision[0] == 3:
+            pass
+            # store information about the timeout
+        else:
+            # this NEVER happens
+            print "Dafuq?"
 
         return
 
