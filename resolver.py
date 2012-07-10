@@ -59,7 +59,7 @@ class Resolver(object):
         decision = self._make_decision(url)
         print decision
         return
-        _store_into_db(decision)
+        self._store_into_db(decision,url)
 
     def _make_decision(self, url):
         self.db_metainfo = self._get_metainfo_from_db(url)
@@ -102,27 +102,46 @@ class Resolver(object):
 
         mdfiver = hashlib.md5()
         mdfiver.update(self.web_full_info[2])
-        self.md5 = mdfiver.hexdigest()
-#?        print "md5: " + self.md5
+        self._md5 = mdfiver.hexdigest()
+#?        print "md5: " + self._md5
 
         shaoner = hashlib.sha1()
         shaoner.update(self.web_full_info[2])
         self.sha1 = shaoner.hexdigest()
 #?        print "sha1: " + self.sha1
 
-        if self.md5 == self.db_metainfo['content']['md5'] and self.sha1 == self.db_metainfo['content']['sha1']:
+        if self._md5 == self.db_metainfo['content']['md5'] and self.sha1 == self.db_metainfo['content']['sha1']:
             store_decision(1, "Store only header (based on computed md5 and sha1 equality)")
 
         return store_decision
 
 
-    def _store_into_db(self, store_decision):
+    def _store_into_db(self, store_decision, url):
         """
         Stores metainfo (and content) in the storage.
         """
         if store_decision[0] == 0:
-            pass
             # store both headers and content
+            content = {
+                'filename':'',
+                'md5':self._md5,
+                'sha1':self.sha1,
+                'content_type':'',
+                'length':str(len(self.web_full_info[2])),
+                'urls':[],
+            }
+
+            new_header = {
+                'timestamp':'',
+                'response_code':'',
+                'last-modified':'',
+                'etag':'',
+                'uid':'',
+                'url':'',
+                'content':content
+            }
+
+
         elif store_decision[0] == 1:
             pass
             # store headers only
@@ -134,26 +153,6 @@ class Resolver(object):
             print "Dafuq?"
 
         return
-
-        if 1:
-            content = {
-                'filename':'',
-                'md5':'',
-                'sha1':'',
-                'content_type':'',
-                'length':'',
-                'urls':[],
-            }
-
-        new_header = {
-            'timestamp':'',
-            'response_code':'',
-            'last-modified':'',
-            'etag':'',
-            'uid':'',
-            'url':'',
-            'content':content
-        }
 
     def _get_metainfo_from_db(self, url):
         """
