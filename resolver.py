@@ -55,24 +55,35 @@ class Resolver(object):
         # for downloaded, get diff, store it into the DB
         # and store the recieved headers as well
 # pseudocode end
-        db_metainfo = self._get_metainfo_from_db(url)
+        decision = self._make_decision(url)
+        print decision
+        return
+        _store_into_db(decision)
+
+    def _make_decision(self, url):
+        self.db_metainfo = self._get_metainfo_from_db(url)
         conn_proxy = _http._HTTPConnectionProxy(url)
-        web_metainfo = conn_proxy.send_request("HEAD",url)
+        self.web_metainfo = conn_proxy.send_request("HEAD",url)
 
-        print db_metainfo
-        print web_metainfo
+        store_decision = (0,"Store both header and content")
 
-        if web_metainfo == None:
-            return "Currently not accesible"
+        print self.db_metainfo
+        print self.web_metainfo
+
+        if self.web_metainfo == None:
+            store_decision = (3, "Timeouted")
+            return "Timeouted"
 
         try:
-            if db_metainfo['etag'] == web_metainfo[1]['etag']:
+            if self.db_metainfo['etag'] == self.web_metainfo[1]['etag']:
+                store_decision = (1, "Store only header (based on etags equality)")
                 return "Nothing changed (etags equal)"
         except KeyError:
             pass
 
         try:
-            if web_metainfo[1]['content-md5'] == db_metainfo['content']['md5']:
+            if self.web_metainfo[1]['content-md5'] == self.db_metainfo['content']['md5']:
+                store_decision = (1, "Store only header (based on recieved content-md5 equality)")
                 return "Nothing changed (md5 equal)"
         except KeyError:
             pass
@@ -81,33 +92,40 @@ class Resolver(object):
         # etag and content-md5 are the only authoritave evidents of 'it has not changed'
         # therefore, now is the time to download the content
 
-        web_full_info = conn_proxy.send_request("GET",url)
-        if web_full_info == None:
+        self.web_full_info = conn_proxy.send_request("GET",url)
+        if self.web_full_info == None:
             return "Pruuser, HEAD prosel, GET uz ne"
 
-        print "header: " + web_full_info[1]['content-length'] + ", len(): " + str(len(web_full_info[2]))
+        print "header: " + self.web_full_info[1]['content-length'] + ", len(): " + str(len(self.web_full_info[2]))
+        print self.web_full_info
 
         mdfiver = hashlib.md5()
-        mdfiver.update(web_full_info[2])
-        md5 = mdfiver.hexdigest()
-        print "md5: " + md5
+        mdfiver.update(self.web_full_info[2])
+        self.md5 = mdfiver.hexdigest()
+        print "md5: " + self.md5
 
         shaoner = hashlib.sha1()
-        shaoner.update(web_full_info[2])
-        sha1 = shaoner.hexdigest()
-        print "sha1: " + sha1
+        shaoner.update(self.web_full_info[2])
+        self.sha1 = shaoner.hexdigest()
+        print "sha1: " + self.sha1
 
-        if md5 == db_metainfo['content']['md5'] and sha1 == db_metainfo['content']['sha1']:
+        if self.md5 == self.db_metainfo['content']['md5'] and self.sha1 == self.db_metainfo['content']['sha1']:
+            store_decision(1, "Store only header (based on computed md5 and sha1 equality)")
             return "Nothing changed (md5 and sha1 equal)"
 
         return "I think they are different, therefore I will store new version"
-        pass
 
-    def _store_into_db(self, metainfo, content):
+
+    def _store_into_db(self, store_decision):
         """
         Stores metainfo (and content) in the storage.
         """
-        if new_content:
+        if store_decision[0] > -1:
+            print store_decision[1]
+
+        return
+
+        if 1:
             content = {
                 'filename':'',
                 'md5':'',
@@ -123,7 +141,7 @@ class Resolver(object):
             'last-modified':'',
             'etag':'',
             'uid':'',
-            'url+index':'',
+            'url':'',
             'content':content
         }
 
@@ -146,7 +164,7 @@ class Resolver(object):
           'last_modified': 'cosi',
           'etag': '"928169-529-4bf6382fb08c0"',
           'uid': "rrs_university",
-          'url+index': "http://www.cosi.cz",
+          'url': "http://www.cosi.cz",
           'content': mockup_content  # object_id
         }
 
