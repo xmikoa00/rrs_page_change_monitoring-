@@ -415,9 +415,9 @@ class HttpHeaderMeta(BaseMongoModel):
             q["response_code"] = {"$lt":400}
             q["content"] = {"$exists" : True}
         try:
-            # TODO: tento dotaz vyoptimalizovat aby se nemusely tahat vsechny headery z db
-            # pouziti skrip() a limit()
-            return [x for x in self.objects.find(q).sort('timestamp',ASCENDING)][version]
+            c = self.objects.find(q).sort('timestamp', ASCENDING).count()
+            skip_ = c+version if version < 0 else c-version
+            return self.objects.find(q).sort('timestamp', ASCENDING).skip(skip_).limit(1)[0]
         except IndexError:
             return None
 
@@ -429,9 +429,10 @@ class HttpHeaderMeta(BaseMongoModel):
             "timestamp": time.time(),
             "url": url,
             "response_code": int(response_code),
-            "content": content_id,
             "uid": self.uid
         }
+        if content_id is not None:
+            h['content'] = content_id
         for f in fields:
             if f[0].lower() in ('etag', 'last-modified'):
                 h[f[0].lower().replace("-", "_")] = f[1]
