@@ -8,7 +8,7 @@ __date__ = "$25.6.2012 12:12:44$"
 
 import _http
 import hashlib
-
+import model
 
 class Resolver(object):
     """
@@ -23,13 +23,14 @@ class Resolver(object):
     """
     def __init__(self, storage, timeout = 10):
         # Storage
-#?        self._storage = storage
+        self._storage = storage
         # are large documents allowed?
-#?        self._allow_large = self._storage.allow_large
+        self._allow_large = self._storage.allow_large
         # GridFS
-#?        self._filesystem = storage.filesystem
+        self._filesystem = storage.filesystem
         # Collection "httpheader"
-#?        self._headers = storage._headermeta
+        self._headers = storage._headermeta
+        # Timeout for checking pages
         self._timeout = timeout
         pass
 
@@ -122,32 +123,13 @@ class Resolver(object):
         """
         if store_decision[0] == 0:
             # store both headers and content
-            content = {
-                'filename':'',
-                'md5':self._md5,
-                'sha1':self.sha1,
-                'content_type':'',
-                'length':str(len(self.web_full_info[2])),
-                'urls':[],
-            }
-
-            new_header = {
-                'timestamp':'',
-                'response_code':'',
-                'last-modified':'',
-                'etag':'',
-                'uid':'',
-                'url':'',
-                'content':content
-            }
-
-
+            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], 'content_id')
         elif store_decision[0] == 1:
-            pass
             # store headers only
+            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], None)
         elif store_decision[0] == 3:
-            pass
             # store information about the timeout
+            self._headers.save_header(url,None, 'Timeouted', None)
         else:
             # this NEVER happens
             print "Dafuq?"

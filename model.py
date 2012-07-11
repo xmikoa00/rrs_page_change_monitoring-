@@ -344,8 +344,8 @@ class HttpHeaderMeta(BaseMongoModel):
             "uid": self.uid
         }
         for f in fields:
-            if f[0].lower() in ('etag', 'last-modified'):
-                h[f[0].lower().replace("-", "_")] = f[1]
+            if f.lower() in ('etag', 'last-modified'):
+                h[f.lower().replace("-", "_")] = fields[f]
         return self.objects.save(h)
 
     def last_checked(self, url):
