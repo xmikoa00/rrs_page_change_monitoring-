@@ -35,6 +35,8 @@ from resolver import Resolver
 from _http import HTTPDateTime
 from errors import *
 
+__all__ = ["Monitor", "MonitoredResource", "HTTPDateTime"]
+
 # constant defining the size of file, which is supposed to be "large"
 # for more info see Monitor.allow_large_docuements.__doc__
 LARGE_DOCUMENT_SIZE = 4096
@@ -148,6 +150,9 @@ class MonitoredResource(object):
         # jestli byl dokument zmenen. Mozna bude take dobre nahrat rovnou do
         # self.file nejnovejsi verzi, ale o tom je potreba jeste pouvazovat.
 
+        # urcite je potreba pred kazdym checkem refreshout file cache
+        # self.file.refresh_cache()
+
         #self.resolver.resolve(self.url)
         raise NotImplementedError()
 
@@ -198,16 +203,22 @@ class MonitoredResource(object):
 
     def get_diff(self, start, end):
         """
-        @param start: start time of the version to be diffed
-        @type start: HTTPDateTime
-        @param end: end time of the version to be diffed
-        @type end: HTTPDateTime
+        @param start: start time or version to be diffed
+        @type start: HTTPDateTime or int
+        @param end: end time or version to be diffed
+        @type end: HTTPDateTime or int
         @returns: either textual or binary diff of the file (if available).
+                  If contents are equal (document did not change within this
+                  time range) returns None.
         @rtype: unicode
         @raises: DocumentHistoryNotAvaliable if the storage doesn't provide
                  enough data for computing the diff.
         """
-        raise NotSupportedYet()
+        content_start = self.get_version(start)
+        content_end = self.get_version(end)
+        if content_start == content_end:
+            return None
+        return content_start.diff_to(content_end)
 
 
     def available(self, httptime=None):
@@ -372,8 +383,12 @@ class Monitor(object):
 
 if __name__ == "__main__":
     m = Monitor(None)
-    r = m.get("h://www.google5.com")
-    print r.get_last_version()
-    print r.get_version(HTTPDateTime(2012,7,2,15,50))
-    #c = r.get_version(-1)
-    #print c, c.read()
+    r = m.get("http://www.google4.com")
+    #print r.get_last_version()
+    #print r.get_version(HTTPDateTime(2012,7,2,15,50))
+    print r.get_diff(-2,-1)
+    #print r.get_diff(-2,-1)
+    c = r.get_version(-1)
+    print c.tell(), c.length
+    print c, c.read()
+

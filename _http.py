@@ -231,11 +231,29 @@ class HTTPDateTime(object):
         @returns: HTTPDateTime object representing current date and time.
         @rtype: HTTPDateTime
         """
-        self.from_timestamp(time.time())
+        self._datetime = datetime.now()
         return self
 
     def __repr__(self):
         return "HTTPDateTime(%s)" % self.to_httpheader_format()
+
+    def __lt__(self, other):
+        return self._datetime.__lt__(other._datetime)
+
+    def __le__(self, other):
+        return self._datetime.__le__(other._datetime)
+
+    def __eq__(self, other):
+        return self._datetime.__eq__(other._datetime)
+
+    def __ne__(self, other):
+        return self._datetime.__ne__(other._datetime)
+
+    def __gt__(self, other):
+        return self._datetime.__gt__(other._datetime)
+
+    def __ge__(self, other):
+        return self._datetime.__ge__(other._datetime)
 
 
 if __name__ == "__main__":
