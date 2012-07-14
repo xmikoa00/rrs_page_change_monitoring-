@@ -58,8 +58,6 @@ class Resolver(object):
         # and store the recieved headers as well
 # pseudocode end
         decision = self._make_decision(url)
-        print decision
-        return
         self._store_into_db(decision,url)
 
     def _make_decision(self, url):
@@ -108,10 +106,10 @@ class Resolver(object):
 
         shaoner = hashlib.sha1()
         shaoner.update(self.web_full_info[2])
-        self.sha1 = shaoner.hexdigest()
-#?        print "sha1: " + self.sha1
+        self._sha1 = shaoner.hexdigest()
+#?        print "sha1: " + self._sha1
 
-        if self._md5 == self.db_metainfo['content']['md5'] and self.sha1 == self.db_metainfo['content']['sha1']:
+        if self._md5 == self.db_metainfo['content']['md5'] and self._sha1 == self.db_metainfo['content']['sha1']:
             store_decision(1, "Store only header (based on computed md5 and sha1 equality)")
 
         return store_decision
@@ -126,7 +124,7 @@ class Resolver(object):
             self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], 'content_id')
         elif store_decision[0] == 1:
             # store headers only
-            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], None)
+            self._headers.save_header(url,self._web_metainfo[0], self._web_metainfo[1], None)
         elif store_decision[0] == 3:
             # store information about the timeout
             self._headers.save_header(url,None, 'Timeouted', None)

@@ -193,24 +193,12 @@ class File(object):
         self._filesystem = fs
         # Collection "httpheader"
         self._headers = headermeta
-<<<<<<< HEAD
 
-        # TODO: mozna slovnik contentu v ruznych verzich
-        # Ukladat se bude vzdycky jen content podle jeho _id, coz uspori to,
-        # ze nebudeme muset z databaze tahat vzdycky cely content, ale staci ziskat
-        # jen z headers info o tom, ktery _id mame tahat. Pokud toto _id uz budeme
-        # mit nacachovane, nemusime ho tahat z db.
-        self.content = None
-
-    def get_content(self):
-=======
-        
         # ulozeno vzdy jednak pod _id a po verzemi -1,-2,-3 pokud se uzivatel
         # ptal  na verzi
         self.content = _ContentCache()
 
     def purge_cache(self):
->>>>>>> 7e25d58c3b356605887826be766112ae2765614a
         """
         Cleans the whole content cache.
         """
@@ -344,15 +332,8 @@ class Content(Diffable):
         Creates diff of self and given Content object and returns unicode string
         representing the computed diff:
         $ diff-algo self obj
-<<<<<<< HEAD
-
-        @param obj: diffed content
-        @type obj: Content
-=======
-        
         @param other: diffed content
         @type other: Content
->>>>>>> 7e25d58c3b356605887826be766112ae2765614a
         @returns: computed diff
         @rtype: unicode
         """
