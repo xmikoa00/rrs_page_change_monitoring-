@@ -391,6 +391,15 @@ class HttpHeaderMeta(BaseMongoModel):
     def get_by_time(self, url, timestamp, last_available=False):
         """
         @TODO: docstring
+        Get record of 'url' with 'timestamp' from HeaderMeta database
+        @param url: url of resource to search for
+        @type url: string
+        @param timestamp:
+        @type timestamp: int  
+        @param last_available:
+        @type last_available: Bool
+        @returns: http header metadata of 'url'/None if not found  
+        @rtype:
         """
         q = {"url": url, "timestamp":{"$lt": timestamp}}
         if self.uid is not None:
@@ -406,6 +415,15 @@ class HttpHeaderMeta(BaseMongoModel):
     def get_by_version(self, url, version, last_available=False):
         """
         @TODO: docstring
+        Get 'version' of 'url' from HeaderMeta database 
+        @param url: url of resource to get from db
+        @type url: string
+        @param version: version number of record, ...TODO: x,-x,1,0,-1
+        @type version: int
+        @param last_available:
+        @type last_available: bool
+        @returns: http header metadata of 'url'/None if not found
+        @rtype:
         """
         q = {"url": url}
         if self.uid is not None:
@@ -422,7 +440,12 @@ class HttpHeaderMeta(BaseMongoModel):
 
     def save_header(self, url, response_code, fields, content_id):
         """
-        @TODO: docstring
+        Save http header into HttpHeaderMeta database
+        @param url: url of checked resource
+        @param response_code: response code of web server
+        @param fields: fields of http response
+        @param content_id: content-id field of http response
+        @returns: saved object
         """
         h = {
             "timestamp": time.time(),
@@ -438,6 +461,19 @@ class HttpHeaderMeta(BaseMongoModel):
         return self.objects.save(h)
 
     def last_checked(self, url):
+        """
+        Get time when 'url' was last checked
+        WARNING! 
+          if None is returned, then 'url' was never checked
+          that should never happen, as 'url' is always checked 
+          in constructor of MonitoredResource
+          but it's possible that the header is not saved 
+          because of an error, eg. timeout or other
+        @param url: url of resource checked
+        @type url: string
+        @returns: time of last check
+        @rtype: HTTPDateTime
+        """
         # Pokud vrati None, pak tento zdroj nebyl NIKDY checkovan, coz by se
         # nemelo moc stavat, protoze vzdy je checknut na zacatku v konstruktoru
         # MonitoredResource POZOR! je ale mozne, ze se header neulozi, protoze
@@ -450,5 +486,4 @@ class HttpHeaderMeta(BaseMongoModel):
     def check_uid(self):
         assert self.uid is not None
         return self.objects.find_one({"uid": self.uid}) is not None
-
 
