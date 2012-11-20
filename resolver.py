@@ -32,7 +32,7 @@ class Resolver(object):
         self._headers = storage._headermeta
         # Timeout for checking pages
         self._timeout = timeout
-        pass
+	pass
 
     def resolve(self, url):
         # Tady bude asi ta nejvetsi magie z celeho systemu
@@ -58,6 +58,7 @@ class Resolver(object):
         # and store the recieved headers as well
 # pseudocode end
         decision = self._make_decision(url)
+        #print(decision)
         self._store_into_db(decision,url)
 
     def _make_decision(self, url):
@@ -92,20 +93,21 @@ class Resolver(object):
         # etag and content-md5 are the only authoritave evidents of 'it has not changed'
         # therefore, now is the time to download the content
 
-        self.web_full_info = conn_proxy.send_request("GET",url)
-        if self.web_full_info == None:
+        self._web_full_info = conn_proxy.send_request("GET",url)
+        #print(self.web_full_info)
+        if self._web_full_info == None:
             return "Pruuser, HEAD prosel, GET uz ne"
 
 #?        print "header: " + self.web_full_info[1]['content-length'] + ", len(): " + str(len(self.web_full_info[2]))
 #?        print self.web_full_info
 
         mdfiver = hashlib.md5()
-        mdfiver.update(self.web_full_info[2])
+        mdfiver.update(self._web_full_info[2])
         self._md5 = mdfiver.hexdigest()
 #?        print "md5: " + self._md5
 
         shaoner = hashlib.sha1()
-        shaoner.update(self.web_full_info[2])
+        shaoner.update(self._web_full_info[2])
         self._sha1 = shaoner.hexdigest()
 #?        print "sha1: " + self._sha1
 
