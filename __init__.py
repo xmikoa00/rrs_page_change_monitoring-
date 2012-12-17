@@ -122,14 +122,18 @@ class MonitoredResource(object):
 
         # resolver
         self.resolver = Resolver(storage)
-
         # file
         try:
             self.file = self.storage.get(url)
+            #DEBUG
+            print "..self.file: ",self.file
         except DocumentNotAvailable:
             # if the file is not in the storage, resolver has to check
             # the url and load actual data into the storage
             self.resolver.resolve(url)
+           
+            #DEBUG
+#?            print "here already: in MonitoredResource.get() 1st except"
             try:
                 self.file = self.storage.get(url)
             except DocumentNotAvailable:
@@ -151,7 +155,7 @@ class MonitoredResource(object):
         # self.file nejnovejsi verzi, ale o tom je potreba jeste pouvazovat.
 
         # urcite je potreba pred kazdym checkem refreshout file cache
-        # self.file.refresh_cache()
+        self.file.refresh_cache()
 
         #self.resolver.resolve(self.url)
         raise NotImplementedError()
@@ -382,12 +386,19 @@ class Monitor(object):
 
 
 if __name__ == "__main__":
-    m = Monitor(None)
-    r = m.get("http://www.google4.com")
-    #print r.get_last_version()
-    #print r.get_version(HTTPDateTime(2012,7,2,15,50))
+    m = Monitor(user_id='rrs',db_port=27018)
+    print m
+    print "MONITOR: STORAGE: ",m._storage
+    print "MONITOR: STORAGE: HEADERS: ",m._storage._headermeta
+    print "MONITOR: STORAGE: GRIDFS: ",m._storage.filesystem    
+    #r = m.get("http://www.fit.vutbr.cz")
+    r = m.get("http://www.google.de")
+    print "resource:",r
+#    print r.get_last_version()
+#    print r.get_version(HTTPDateTime(2012,12,18,23,50))
+    print r.get_version(0)
     print r.get_diff(-2,-1)
-    #print r.get_diff(-2,-1)
+    print r.get_diff(-2,-1)
     c = r.get_version(-1)
     print c.tell(), c.length
     print c, c.read()

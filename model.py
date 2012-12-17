@@ -82,6 +82,7 @@ class Storage(BaseMongoModel):
         self._headermeta = HttpHeaderMeta(connection, uid, database)
         # filesystem interface
         self.filesystem = GridFS(self._connection[database], "content")
+#?        print "STORAGE: FILESYSTEM: ",self.filesystem
         # flag representing possibility to save large objects into storage
         self.allow_large = False
 
@@ -101,6 +102,7 @@ class Storage(BaseMongoModel):
         @rtype: File
         @raises: DocumentNotAvailable if document doesnt exist in the storage
         """
+#?        print "In Storage.get(): resource ",filename
         if not self.filesystem.exists(filename=filename):
             raise DocumentNotAvailable("File does not exist in the storage.")
         return File(filename, self.filesystem, self._headermeta)
@@ -243,14 +245,15 @@ class File(object):
             if h is None:
                 raise DocumentHistoryNotAvaliable("Version %s of document %s is"\
                     " not available." % (timestamp_or_version, self.filename))
-
+            print "Document: ",h
             # try to get content from cache by content ID
             content_id = h['content'] # ObjectiId
             if content_id in self.content:
                 return self.content[content_id]
-
+            print "Content_id: ",h['content']
             # otherwise load content from db
-            g = self._filesystem.get(content_id) # GridOut
+            #g = self._filesystem.get(content_id) # GridOut
+            g = self._filesystem.get_version(filename=self.filename,version=timestamp_or_version)
             # cache it
             r = self.content[content_id] = self.content[timestamp_or_version] = Content(g)
 
@@ -258,11 +261,12 @@ class File(object):
         else:
             h = self._headers.get_by_time(self.filename, timestamp_or_version,
                                           last_available=True)
+            print "Document: ",h
             if h is None:
                 t = HTTPDateTime().from_timestamp(timestamp_or_version)
                 raise DocumentHistoryNotAvaliable("Version of document %s in time"\
                 " %s is not available." % (self.filename, t.to_httpheader_format()))
-
+            
             # try to get content from cache by content ID
             content_id = h['content'] # ObjectiId
             if content_id in self.content:
@@ -270,7 +274,9 @@ class File(object):
 
             # otherwise load content from db
             content_id = h['content'] # ObjectiId
-            g = self._filesystem.get(content_id) # GridOut
+            print "Content_id: ",h#['content']
+            #g = self._filesystem.get(content_id) # GridOut
+            g = self._filesystem.get_version(filename=self.filename,version=-1) # this gets the last version... FIX
             r = self.content[content_id] = Content(g) # cache it
         
         # return the content, which was requested
@@ -348,6 +354,7 @@ class Content(Diffable):
         @rtype: subclass of diff.DocumentDiff (see diff.py for more)
         """
         # bude navracet PlainTextDiff, BinaryDiff atp.
+        print "self._gridout.content_type: ",self._gridout.content_type
         assert '/' in self._gridout.content_type
         type_, subtype = self._gridout.content_type.split('/')
         if type_ == 'text':
@@ -410,6 +417,7 @@ class HttpHeaderMeta(BaseMongoModel):
         try:
             return self.objects.find(q).sort('timestamp',DESCENDING)[0]
         except IndexError:
+            print "in httpheader:getversion: IndexError"
             return None
 
     def get_by_version(self, url, version, last_available=False):
@@ -454,6 +462,7 @@ class HttpHeaderMeta(BaseMongoModel):
             "uid": self.uid
         }
         if content_id is not None:
+            print "save_header: content_id: ",content_id
             h['content'] = content_id
         for f in fields:
             if f.lower() in ('etag', 'last-modified'):

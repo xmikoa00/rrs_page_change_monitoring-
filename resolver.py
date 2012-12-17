@@ -24,6 +24,7 @@ class Resolver(object):
     def __init__(self, storage, timeout = 10):
         # Storage
         self._storage = storage
+#?        print "RESOLVER: STORAGE: ",self._storage
         # are large documents allowed?
         self._allow_large = self._storage.allow_large
         # GridFS
@@ -65,10 +66,10 @@ class Resolver(object):
         self.db_metainfo = self._get_metainfo_from_db(url)
         conn_proxy = _http._HTTPConnectionProxy(url,self._timeout)
         self.web_metainfo = conn_proxy.send_request("HEAD",url)
-
+        
         store_decision = (0,"Store both header and content")
 
-#?        print self.db_metainfo
+        print "Resolver: _make_decision: db_metainfo",self.db_metainfo
 #?        print self.web_metainfo
 
         if self.web_metainfo == None:
@@ -94,12 +95,15 @@ class Resolver(object):
         # therefore, now is the time to download the content
 
         self._web_full_info = conn_proxy.send_request("GET",url)
-        #print(self.web_full_info)
+        
         if self._web_full_info == None:
             return "Pruuser, HEAD prosel, GET uz ne"
 
-#?        print "header: " + self.web_full_info[1]['content-length'] + ", len(): " + str(len(self.web_full_info[2]))
-#?        print self.web_full_info
+#?        print "header: " + self._web_full_info[1]['content-length'] + ", len(): " + str(len(self._web_full_info[2]))
+#?        print "_web_full_info[0]: ",self._web_full_info[0]
+#?        print "_web_full_info[1]: ",self._web_full_info[1]        
+#?        print "_web_full_info[2]: ",self._web_full_info[2] # this is the full html code of the page
+#?        print "_web_full_info[3]: ",self._web_full_info[3]
 
         mdfiver = hashlib.md5()
         mdfiver.update(self._web_full_info[2])
@@ -113,7 +117,7 @@ class Resolver(object):
 
         if self._md5 == self.db_metainfo['content']['md5'] and self._sha1 == self.db_metainfo['content']['sha1']:
             store_decision(1, "Store only header (based on computed md5 and sha1 equality)")
-
+#?        print "store_decision: ",store_decision
         return store_decision
 
 
@@ -121,9 +125,17 @@ class Resolver(object):
         """
         Stores metainfo (and content) in the storage.
         """
+       
+#?        print "In Resolver._store_into_db: store_decision: ",store_decision
+        web_full_info_cat = ""
+        for i in range(4):
+            web_full_info_cat += str(self._web_full_info[i])
+        #print web_full_info_cat
         if store_decision[0] == 0:
             # store both headers and content
             self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], 'content_id')
+            # TODO: store data in GridFS... need to be consistent with the expectations of the other modules
+            self._filesystem.put(web_full_info_cat,filename=url) # ..something like this, but not exactly
         elif store_decision[0] == 1:
             # store headers only
             self._headers.save_header(url,self._web_metainfo[0], self._web_metainfo[1], None)
@@ -133,7 +145,7 @@ class Resolver(object):
         else:
             # this NEVER happens
             print "Dafuq?"
-
+#?        print "self._headers:", self._headers
         return
 
     def _get_metainfo_from_db(self, url):
@@ -158,6 +170,29 @@ class Resolver(object):
           'url': "http://www.cosi.cz",
           'content': mockup_content  # object_id
         }
+        #q = {'url':url}
+	#print "METAINFO FROM DB:",self._headers.objects.find(q)
+        #for item in self._headers.objects.find(q):
+        #    print "get_metainfo_from_db: ",item #self._headers.objects.find(q)
+        #return self._headers.objects.find(q)[0]
+
+#        mockup_content = {
+#            'filename': "http://www.fit.vutbr.cz",
+#            'md5' : '233fde7ca8a474f4cc7a198ba87822ff',
+#            'sha1': 'b2e4bce03a0578da5fd9e83b28acac819f365bda',
+#            'content_type': 'text/html',
+#            'length': 1347,
+#            'urls' : ['http://www.fit.vutbr.cz']
+#        }
+
+#        mockup_header = {
+#            'timestamp': 1341161610.287,
+#            'response_code': 200,
+#            'last_modified': 'cosi',
+#            'uid': "rrs_university",
+#            'url': "http://www.fit.vutbr.cz",
+#            'content': mockup_content
+#        }
 
         return mockup_header
 
