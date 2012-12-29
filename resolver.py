@@ -72,6 +72,11 @@ class Resolver(object):
         print "Resolver: _make_decision: db_metainfo",self.db_metainfo
 #?        print self.web_metainfo
 
+        if self.db_metainfo == None:
+            store_decision = (0,"Store both header and content")
+            self._make_decision_2(url,conn_proxy)
+            return store_decision
+
         if self.web_metainfo == None:
             store_decision = (3, "Timeouted")
             return store_decision
@@ -90,7 +95,10 @@ class Resolver(object):
 
         if store_decision[0] != 0:
             return store_decision
-
+        else:
+            return self._make_decision_2(url,conn_proxy)
+    
+    def _make_decision_2(self, url, conn_proxy):
         # etag and content-md5 are the only authoritave evidents of 'it has not changed'
         # therefore, now is the time to download the content
 
@@ -115,8 +123,10 @@ class Resolver(object):
         self._sha1 = shaoner.hexdigest()
 #?        print "sha1: " + self._sha1
 
-        if self._md5 == self.db_metainfo['content']['md5'] and self._sha1 == self.db_metainfo['content']['sha1']:
-            store_decision(1, "Store only header (based on computed md5 and sha1 equality)")
+        if (self.db_metainfo is not None) and self._md5 == self.db_metainfo['content']['md5'] and self._sha1 == self.db_metainfo['content']['sha1']:
+            store_decision = (1, "Store only header (based on computed md5 and sha1 equality)")
+        else:
+            store_decision = (0, "Store both header and content")
 #?        print "store_decision: ",store_decision
         return store_decision
 
@@ -131,11 +141,19 @@ class Resolver(object):
         for i in range(4):
             web_full_info_cat += str(self._web_full_info[i])
         #print web_full_info_cat
+        content_id = {
+            'filename': url,
+            'md5': self._md5,
+            'sha1': self._sha1,
+            'content-type': self._web_full_info[1]['content-type'],
+#            'length': self._web_full_info[1]['content-length'],
+            'urls': [url]
+        }
         if store_decision[0] == 0:
             # store both headers and content
-            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], 'content_id')
+            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], content_id)
             # TODO: store data in GridFS... need to be consistent with the expectations of the other modules
-            self._filesystem.put(web_full_info_cat,filename=url) # ..something like this, but not exactly
+            self._filesystem.put(web_full_info_cat,filename=url,content_type=self._web_full_info[1]['content-type']) # ..something like this, but not exactly
         elif store_decision[0] == 1:
             # store headers only
             self._headers.save_header(url,self._web_metainfo[0], self._web_metainfo[1], None)
@@ -152,49 +170,34 @@ class Resolver(object):
         """
         Returns last metainfo upon the given url stored in the DB.
         """
-        mockup_content = {
-            'filename': "http://www.aquafortis.cz/trenink.html",
-            'md5': '233fde7ca8a474f4cc7a198ba87822ff',
-            'sha1': 'b2e4bce03a0578da5fd9e83b28acac819f365bda',
-            'content_type': '',
-            'length': 1347,
-            'urls' : ['http://www.aquafortis.cz/trenink.html']
-        }
-
-        mockup_header = {
-          'timestamp': 1341161610.287,
-          'response_code': 200,
-          'last_modified': 'cosi',
-          'etag': '"928169-543-4c46b09cfca00"',
-          'uid': "rrs_university",
-          'url': "http://www.cosi.cz",
-          'content': mockup_content  # object_id
-        }
-        #q = {'url':url}
-	#print "METAINFO FROM DB:",self._headers.objects.find(q)
-        #for item in self._headers.objects.find(q):
-        #    print "get_metainfo_from_db: ",item #self._headers.objects.find(q)
-        #return self._headers.objects.find(q)[0]
-
 #        mockup_content = {
-#            'filename': "http://www.fit.vutbr.cz",
-#            'md5' : '233fde7ca8a474f4cc7a198ba87822ff',
+#            'filename': "http://www.aquafortis.cz/trenink.html",
+#            'md5': '233fde7ca8a474f4cc7a198ba87822ff',
 #            'sha1': 'b2e4bce03a0578da5fd9e83b28acac819f365bda',
-#            'content_type': 'text/html',
+#            'content_type': '',
 #            'length': 1347,
-#            'urls' : ['http://www.fit.vutbr.cz']
+#            'urls' : ['http://www.aquafortis.cz/trenink.html']
 #        }
-
+#
 #        mockup_header = {
-#            'timestamp': 1341161610.287,
-#            'response_code': 200,
-#            'last_modified': 'cosi',
-#            'uid': "rrs_university",
-#            'url': "http://www.fit.vutbr.cz",
-#            'content': mockup_content
+#          'timestamp': 1341161610.287,
+#          'response_code': 200,
+#          'last_modified': 'cosi',
+#          'etag': '"928169-543-4c46b09cfca00"',
+#          'uid': "rrs_university",
+#          'url': "http://www.cosi.cz",
+#          'content': mockup_content  # object_id
 #        }
 
-        return mockup_header
+        q = {'url':url}
+#?     	print "METAINFO FROM DB:",self._headers.objects.find(q)
+#?        for item in self._headers.objects.find(q):
+#?            print "get_metainfo_from_db: ",item #self._headers.objects.find(q)
+        try:
+            retval = self._headers.objects.find(q)[0]
+        except:
+            retval = None
+        return retval
 
 class Rule(object):
     """

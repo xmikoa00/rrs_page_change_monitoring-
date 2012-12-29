@@ -140,7 +140,10 @@ class _ContentCache(object):
         self.__contents[key] = value
 
     def __contains__(self, key):
-        return key in self.__contents
+        if key in self.__contents:
+            return True
+        else:
+            return False
 
     def __iter__(self):
         for x in self.__contents:
@@ -247,7 +250,7 @@ class File(object):
                     " not available." % (timestamp_or_version, self.filename))
             print "Document: ",h
             # try to get content from cache by content ID
-            content_id = h['content'] # ObjectiId
+            content_id = h['timestamp'] # ObjectiId
             if content_id in self.content:
                 return self.content[content_id]
             print "Content_id: ",h['content']
@@ -268,15 +271,15 @@ class File(object):
                 " %s is not available." % (self.filename, t.to_httpheader_format()))
             
             # try to get content from cache by content ID
-            content_id = h['content'] # ObjectiId
+            content_id = h['timestamp'] # ObjectiId
             if content_id in self.content:
                 return self.content[content_id]
 
             # otherwise load content from db
-            content_id = h['content'] # ObjectiId
-            print "Content_id: ",h#['content']
-            #g = self._filesystem.get(content_id) # GridOut
-            g = self._filesystem.get_version(filename=self.filename,version=-1) # this gets the last version... FIX
+            content_id = h['md5'] # ObjectiId
+#            print "Content_id: ",h['content']
+            g = self._filesystem.get_version(filename=self.filename,version=-1,md5=content_id) # GridOut
+            #g = self._filesystem.get_version(filename=self.filename,version=-1) # this gets the last version... FIX
             r = self.content[content_id] = Content(g) # cache it
         
         # return the content, which was requested

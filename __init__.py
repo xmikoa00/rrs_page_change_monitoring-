@@ -392,14 +392,14 @@ if __name__ == "__main__":
     print "MONITOR: STORAGE: HEADERS: ",m._storage._headermeta
     print "MONITOR: STORAGE: GRIDFS: ",m._storage.filesystem    
     #r = m.get("http://www.fit.vutbr.cz")
-    r = m.get("http://www.google.de")
+    r = m.get("http://www.google.hu")
     print "resource:",r
-#    print r.get_last_version()
-#    print r.get_version(HTTPDateTime(2012,12,18,23,50))
-    print r.get_version(0)
-    print r.get_diff(-2,-1)
-    print r.get_diff(-2,-1)
-    c = r.get_version(-1)
-    print c.tell(), c.length
-    print c, c.read()
+    print r.get_last_version()
+    print r.get_version(HTTPDateTime(2012,12,29,14,50))
+#    print r.get_version(1)
+#    print r.get_diff(-2,-1)
+#    print r.get_diff(-2,-1)
+#    c = r.get_version(-1)
+#    print c.tell(), c.length
+#    print c, c.read()
 
