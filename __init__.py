@@ -126,7 +126,7 @@ class MonitoredResource(object):
         try:
             self.file = self.storage.get(url)
             #DEBUG
-            print "..self.file: ",self.file
+#?            print "..self.file: ",self.file
         except DocumentNotAvailable:
             # if the file is not in the storage, resolver has to check
             # the url and load actual data into the storage
@@ -386,20 +386,22 @@ class Monitor(object):
 
 
 if __name__ == "__main__":
-    m = Monitor(user_id='rrs',db_port=27018)
+    m = Monitor(user_id='rrs',db_port=27018) # testing on port 27018... 
+                                             # USE db_port=27017 for normal use, that's the default for mongodb
     print m
     print "MONITOR: STORAGE: ",m._storage
     print "MONITOR: STORAGE: HEADERS: ",m._storage._headermeta
     print "MONITOR: STORAGE: GRIDFS: ",m._storage.filesystem    
     #r = m.get("http://www.fit.vutbr.cz")
-    r = m.get("http://www.google.hu")
-    print "resource:",r
-    print r.get_last_version()
-    print r.get_version(HTTPDateTime(2012,12,29,14,50))
-#    print r.get_version(1)
+    #r = m.get("http://www.google.com")
+    r = m.get("http://localhost/act.txt")
+    print "resource:",r,"\n"
+    print "last version: ",r.get_last_version(),"\n"  # works 
+    print "by time: ",r.get_version(HTTPDateTime(2013,1,20,20,56)),"\n"
+    print "by version: ",r.get_version(1) # works
 #    print r.get_diff(-2,-1)
 #    print r.get_diff(-2,-1)
-#    c = r.get_version(-1)
+#    c = r.get_version(-1) # works
 #    print c.tell(), c.length
 #    print c, c.read()
 

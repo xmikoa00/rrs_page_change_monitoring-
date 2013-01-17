@@ -6,6 +6,7 @@ __author__ = "Stanislav Heller"
 __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__ = "$25.6.2012 12:12:44$"
 
+from _http import HTTPDateTime
 import _http
 import hashlib
 import model
@@ -69,7 +70,7 @@ class Resolver(object):
         
         store_decision = (0,"Store both header and content")
 
-        print "Resolver: _make_decision: db_metainfo",self.db_metainfo
+#?        print "Resolver: _make_decision: db_metainfo",self.db_metainfo
 #?        print self.web_metainfo
 
         if self.db_metainfo == None:
@@ -84,12 +85,14 @@ class Resolver(object):
         try:
             if self.db_metainfo['etag'] == self.web_metainfo[1]['etag']:
                 store_decision = (1, "Store only header (based on etags equality)")
+                self._md5 = self.web_metainfo[1]['content-md5']
         except KeyError:
             pass
 
         try:
             if self.web_metainfo[1]['content-md5'] == self.db_metainfo['content']['md5']:
                 store_decision = (1, "Store only header (based on recieved content-md5 equality)")
+                self._md5 = self.web_metainfo[1]['content-md5']
         except KeyError:
             pass
 
@@ -109,7 +112,7 @@ class Resolver(object):
 
 #?        print "header: " + self._web_full_info[1]['content-length'] + ", len(): " + str(len(self._web_full_info[2]))
 #?        print "_web_full_info[0]: ",self._web_full_info[0]
-#?        print "_web_full_info[1]: ",self._web_full_info[1]        
+#?        print "_web_full_info[1]: ",self._web_full_info[1]['date']        
 #?        print "_web_full_info[2]: ",self._web_full_info[2] # this is the full html code of the page
 #?        print "_web_full_info[3]: ",self._web_full_info[3]
 
@@ -137,26 +140,24 @@ class Resolver(object):
         """
        
 #?        print "In Resolver._store_into_db: store_decision: ",store_decision
-        web_full_info_cat = ""
-        for i in range(4):
-            web_full_info_cat += str(self._web_full_info[i])
-        #print web_full_info_cat
-        content_id = {
-            'filename': url,
-            'md5': self._md5,
-            'sha1': self._sha1,
-            'content-type': self._web_full_info[1]['content-type'],
-#            'length': self._web_full_info[1]['content-length'],
-            'urls': [url]
-        }
         if store_decision[0] == 0:
+            content_id = {
+                'filename': url,
+                'md5': self._md5,
+                'sha1': self._sha1,
+                'content-type': self._web_full_info[1]['content-type'],
+#                'length': self._web_full_info[1]['content-length'],
+                'urls': [url]
+            }
             # store both headers and content
             self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], content_id)
             # TODO: store data in GridFS... need to be consistent with the expectations of the other modules
-            self._filesystem.put(web_full_info_cat,filename=url,content_type=self._web_full_info[1]['content-type']) # ..something like this, but not exactly
+            self._filesystem.put(self._web_full_info[2],filename=url,
+                content_type=self._web_full_info[1]['content-type'],
+                timestamp=HTTPDateTime().from_httpheader_format(self._web_full_info[1]['date']).to_timestamp())
         elif store_decision[0] == 1:
             # store headers only
-            self._headers.save_header(url,self._web_metainfo[0], self._web_metainfo[1], None)
+            self._headers.save_header(url,self.web_metainfo[0], self.web_metainfo[1], None)
         elif store_decision[0] == 3:
             # store information about the timeout
             self._headers.save_header(url,None, 'Timeouted', None)

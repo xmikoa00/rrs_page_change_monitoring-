@@ -248,12 +248,12 @@ class File(object):
             if h is None:
                 raise DocumentHistoryNotAvaliable("Version %s of document %s is"\
                     " not available." % (timestamp_or_version, self.filename))
-            print "Document: ",h
+#?            print "Document: ",h
             # try to get content from cache by content ID
             content_id = h['timestamp'] # ObjectiId
             if content_id in self.content:
                 return self.content[content_id]
-            print "Content_id: ",h['content']
+#?            print "Content_id: ",h['content']
             # otherwise load content from db
             #g = self._filesystem.get(content_id) # GridOut
             g = self._filesystem.get_version(filename=self.filename,version=timestamp_or_version)
@@ -264,7 +264,7 @@ class File(object):
         else:
             h = self._headers.get_by_time(self.filename, timestamp_or_version,
                                           last_available=True)
-            print "Document: ",h
+#?            print "Document: ",h
             if h is None:
                 t = HTTPDateTime().from_timestamp(timestamp_or_version)
                 raise DocumentHistoryNotAvaliable("Version of document %s in time"\
@@ -276,12 +276,21 @@ class File(object):
                 return self.content[content_id]
 
             # otherwise load content from db
-            content_id = h['md5'] # ObjectiId
-#            print "Content_id: ",h['content']
-            g = self._filesystem.get_version(filename=self.filename,version=-1,md5=content_id) # GridOut
-            #g = self._filesystem.get_version(filename=self.filename,version=-1) # this gets the last version... FIX
-            r = self.content[content_id] = Content(g) # cache it
-        
+            i = -1
+            while(True):
+                try:
+                    g = self._filesystem.get_version(filename=self.filename,version=i) # GridOut
+                    upload_date = HTTPDateTime().from_gridfs_upload_date(g.upload_date).to_timestamp()
+                    if upload_date < timestamp_or_version :
+                        r = self.content[content_id] = Content(g) # cache it
+                        return r
+                    else:
+                        i = i - 1
+                except : # FIX fill in name of exception
+                    raise DocumentHistoryNotAvaliable("Version of document %s in time"\
+                    " %s is not available." % (self.filename, 
+                    HTTPDateTime().from_timestamp(timestamp_or_version).to_httpheader_format()))
+
         # return the content, which was requested
         return r
 
@@ -420,7 +429,7 @@ class HttpHeaderMeta(BaseMongoModel):
         try:
             return self.objects.find(q).sort('timestamp',DESCENDING)[0]
         except IndexError:
-            print "in httpheader:getversion: IndexError"
+#?            print "in httpheader:getversion: IndexError"
             return None
 
     def get_by_version(self, url, version, last_available=False):
@@ -465,7 +474,7 @@ class HttpHeaderMeta(BaseMongoModel):
             "uid": self.uid
         }
         if content_id is not None:
-            print "save_header: content_id: ",content_id
+#?            print "save_header: content_id: ",content_id
             h['content'] = content_id
         for f in fields:
             if f.lower() in ('etag', 'last-modified'):

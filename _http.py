@@ -224,6 +224,19 @@ class HTTPDateTime(object):
         self._datetime = datetimeobj
         return self
 
+    def from_gridfs_upload_date(self, upload_date):
+        """
+        Convert the date and time from grid_file.update_date string 
+        to HTTPDateTime object.
+
+        @param update_date: time string from grid_file.update_date
+        @returns: HTTPDateTime object representing date and time of update_date
+        @rtype: HTTPDateTime
+        """
+        ts = time.strptime((str(upload_date))[:18],"%Y-%m-%d %H:%M:%S")
+        self.from_timestamp(time.mktime(ts))
+        return self
+
     def now(self):
         """
         Set the time of this object as current time (time.time())
