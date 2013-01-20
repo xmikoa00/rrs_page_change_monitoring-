@@ -197,7 +197,8 @@ class HTTPDateTime(object):
             '-' + str(self._datetime.day) + 'T' + str(self._datetime.hour) + ':' + \
             str(self._datetime.minute) + ':' + str(self._datetime.second) + \
             " GMT" , '%Y-%m-%dT%H:%M:%S %Z')
-        return time.mktime(ts) - 3600 + (self._datetime.microsecond / 1000000.0)
+#        return time.mktime(ts) - 3600 + (self._datetime.microsecond / 1000000.0)
+        return time.mktime(ts) + (self._datetime.microsecond / 1000000.0)
 
     def from_timestamp(self, timestamp):
         """
