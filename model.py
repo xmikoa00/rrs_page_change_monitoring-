@@ -264,10 +264,10 @@ class File(object):
         else:
             h = self._headers.get_by_time(self.filename, timestamp_or_version,
                                           last_available=True)
-#?            print "Document: ",h
+
             if h is None:
                 t = HTTPDateTime().from_timestamp(timestamp_or_version)
-                raise DocumentHistoryNotAvaliable("Version of document %s in time"\
+                raise DocumentHistoryNotAvaliable("h is none\nVersion of document %s in time"\
                 " %s is not available." % (self.filename, t.to_httpheader_format()))
             
             # try to get content from cache by content ID
@@ -276,12 +276,14 @@ class File(object):
                 return self.content[content_id]
 
             # otherwise load content from db
+            # ... the right query might do the same with a single line of code
             i = -1
             while(True):
                 try:
                     g = self._filesystem.get_version(filename=self.filename,version=i) # GridOut
                     upload_date = HTTPDateTime().from_gridfs_upload_date(g.upload_date).to_timestamp()
-                    if upload_date < timestamp_or_version :
+#?                    print "\nupload_date: ",upload_date," ",g.upload_date," timestamp: ",timestamp_or_version,"\n"
+                    if (upload_date+3600) < timestamp_or_version :   # correction for time zone!!!
                         r = self.content[content_id] = Content(g) # cache it
                         return r
                     else:
@@ -366,7 +368,7 @@ class Content(Diffable):
         @rtype: subclass of diff.DocumentDiff (see diff.py for more)
         """
         # bude navracet PlainTextDiff, BinaryDiff atp.
-        print "self._gridout.content_type: ",self._gridout.content_type
+#?        print "self._gridout.content_type: ",self._gridout.content_type
         assert '/' in self._gridout.content_type
         type_, subtype = self._gridout.content_type.split('/')
         if type_ == 'text':
