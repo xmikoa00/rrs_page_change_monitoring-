@@ -388,19 +388,50 @@ class Monitor(object):
 if __name__ == "__main__":
     m = Monitor(user_id='rrs',db_port=27018) # testing on port 27018... 
                                              # USE db_port=27017 for normal use, that's the default for mongodb
-    print m
-    print "MONITOR: STORAGE: ",m._storage
-    print "MONITOR: STORAGE: HEADERS: ",m._storage._headermeta
-    print "MONITOR: STORAGE: GRIDFS: ",m._storage.filesystem    
+#    print m
+#    print "MONITOR: STORAGE: ",m._storage
+#    print "MONITOR: STORAGE: HEADERS: ",m._storage._headermeta
+#    print "MONITOR: STORAGE: GRIDFS: ",m._storage.filesystem    
     #r = m.get("http://www.fit.vutbr.cz")
     #r = m.get("http://www.google.com")
-    r = m.get("http://localhost/act.txt")
+    r = m.get("http://localhost/act.html")
     print "resource:",r,"\n"
     print "last version: ",r.get_last_version(),"\n"  # works 
-    print "by time: ",r.get_version(HTTPDateTime(2013,1,20,20,56)),"\n"
-    print "by version: ",r.get_version(1) # works
-#    print r.get_diff(-2,-1)
-#    print r.get_diff(-2,-1)
+    print "last checked: ",r.last_checked(),"\n"      # works
+    
+    # use actual times when testing!!! 
+    #   otherwise will get exception DocumentHistoryNotAvailable 
+#    print "by time: 2013-01-21 22:00",r.get_version(HTTPDateTime(2013,1,21,22,00)),"\n"
+#    print "by time: 2013-01-21 21:40",r.get_version(HTTPDateTime(2013,1,21,21,40)),"\n"
+#    print "by time: 2013-01-21 21:38",r.get_version(HTTPDateTime(2013,1,21,21,38)),"\n"
+#    print "by time: 2013-01-18 23:34",r.get_version(HTTPDateTime(2013,1,18,23,34)),"\n"
+
+#    print "by version: version 0: ",r.get_version(0) # doesn't work for version 0
+#    print "by version: version 2: ",r.get_version(2)
+#    print "by version: version 4: ",r.get_version(4)
+    c = r.get_version(-1)
+    print "by version: version -1: ", c, c.upload_date
+    c = r.get_version(-2)
+    print "by version: version -2: ", c, c.upload_date
+#    c = r.get_version(-3)
+#    print "by version: version -3: ", c, c.upload_date
+#    c = r.get_version(-4)
+#    print "by version: version -4: ", c, c.upload_date
+
+    d = r.get_diff(-2,-1)
+    if d is (str or unicode): # text/plain
+        print "diff -2,-1: ",d
+    else: # text/html
+        try:
+            while(True):
+                chunk = d.next()
+                print "diff -2,-1: ",chunk.position,"\n",chunk.added,"\n",chunk.removed
+        except StopIteration:
+            exit()
+        except TypeError:
+            exit()
+
+#    print "diff times: ",r.get_diff(HTTPDateTime(2013,1,21,22,00),HTTPDateTime(2013,1,21,21,38))
 #    c = r.get_version(-1) # works
 #    print c.tell(), c.length
 #    print c, c.read()
