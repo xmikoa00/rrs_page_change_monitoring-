@@ -90,7 +90,7 @@ class PlainTextDiff(DocumentDiff):
         """
         @param obj1: first text to be diffed
         @type obj1: string or unicode
-        @param obj2: first text to be diffed
+        @param obj2: second text to be diffed
         @type obj2: string or unicode
         @returns: unicode diff
         @rtype: unicode
@@ -122,6 +122,14 @@ class HtmlDiff(DocumentDiff):
     """
     Html diff, which shows pieces of code, which was added to the page.
     Uses output of GNU diff and its interface PlainTextDiff.
+    
+    Returns generator object HtmlDiffChunk
+    Usage:
+    >>> # r is resource
+    >>> d = r.get_diff(-2,-1) #get diff of last two versions
+    >>> print d.next()
+    HtmlDiffChunk(position=u'line_info_from_diff', removed=u'this was removed',added=u'this was added')
+
     """
     _possible_encodings = ('ascii', 'utf-8', 'cp1250', 'latin1', 'latin2', 'cp1251')
 
