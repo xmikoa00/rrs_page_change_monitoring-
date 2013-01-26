@@ -14,6 +14,7 @@ __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__  = "$23.6.2012 16:33:31$"
 
 import time
+import pymongo
 
 from pymongo import Connection, ASCENDING, DESCENDING
 from bson import ObjectId
@@ -457,7 +458,7 @@ class HttpHeaderMeta(BaseMongoModel):
             c = self.objects.find(q).sort('timestamp', ASCENDING).count()
             skip_ = c+version if version < 0 else c-version
             return self.objects.find(q).sort('timestamp', ASCENDING).skip(skip_).limit(1)[0]
-        except IndexError:
+        except (IndexError, pymongo.errors.OperationFailure): # other exception might happen
             return None
 
     def save_header(self, url, response_code, fields, content_id):
