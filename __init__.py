@@ -174,7 +174,7 @@ class MonitoredResource(object):
         d = self.get_diff(_prev,_now)
         
         if d is None: return False
-        if (d is basestring) and len(d)==0: return False
+        if isinstance(d, basestring) and len(d)==0: return False
         try: # d is htmldiff output
             chunk = d.next()
             if len(chunk.added)==0 and len(chunk.removed)==0:
@@ -425,14 +425,14 @@ if __name__ == "__main__":
     #r = m.get("http://www.fit.vutbr.cz")
     #r = m.get("http://www.google.com")
     #r = m.get("http://cs.wikipedia.org/wiki/Hlavní_strana")
-    r = m.get("http://hu.wikipedia.org") 
-    #r = m.get("http://localhost/act.html")
+    #r = m.get("http://en.wikipedia.org") 
+    r = m.get("http://localhost/cz_cp1250.html")
 
     print "resource:",r,"\n"
 #    print "checked: ", r._checked
-#    print "last version: ",r.get_last_version()  # works 
+    print "last version: ",r.get_last_version()  # works 
 #    print "last checked: ",r.last_checked(),"\n"      # works
-#    print "check: ",r.check(),"\n"    
+    print "check: ",r.check(),"\n"    
 #    print "checked: ", r._checked
 
     # use actual times when testing!!! 
@@ -454,11 +454,11 @@ if __name__ == "__main__":
 #    c = r.get_version(-4)
 #    print "by version: version -4: ", c, c.upload_date
 
-    d = r.get_diff(HTTPDateTime(2013,1,27,0,0),-1)
+    d = r.get_diff(HTTPDateTime(2013,1,27,13,40),-1)
     print "DIFF\n"
 
-    if d is (str or unicode): # text/plain
-        print "diff -2,-1: ",d
+    if isinstance(d, basestring): # text/plain
+        print "diff -2,-1: ",d.encode('utf-8')
     elif d is None: 
         print "d is None"#pass
     else: # text/html
