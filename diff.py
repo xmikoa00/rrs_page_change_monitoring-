@@ -39,11 +39,17 @@ class _DiffTmpFiles(object):
         self.fn1 = self.get_unique_tmpfilename()
         self.fn2 = self.get_unique_tmpfilename()
         with codecs.open(self.fn1, encoding='utf-8', mode='wb') as f1:
-            f1.write(obj1)
+            try:
+                f1.write(obj1)
+            except:
+                f1.write(unicode(obj1,'utf-8'))
             if obj1[-1] != '\n':
                 f1.write('\n')
         with codecs.open(self.fn2, encoding='utf-8', mode='wb') as f2:
-            f2.write(obj2)
+            try:
+                f2.write(obj2)
+            except:
+                f2.write(unicode(obj2,'utf-8'))
             if obj2[-1] != '\n':
                 f2.write('\n')
 
