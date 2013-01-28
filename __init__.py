@@ -122,6 +122,7 @@ class MonitoredResource(object):
 
         # resolver
         self.resolver = Resolver(storage)
+        self._checked = False
         # file
         try:
             self.file = self.storage.get(url)
@@ -131,7 +132,7 @@ class MonitoredResource(object):
             # if the file is not in the storage, resolver has to check
             # the url and load actual data into the storage
             self.resolver.resolve(url)
-           
+            self._checked = True
             #DEBUG
 #?            print "here already: in MonitoredResource.get() 1st except"
             try:
@@ -157,8 +158,33 @@ class MonitoredResource(object):
         # urcite je potreba pred kazdym checkem refreshout file cache
         self.file.refresh_cache()
 
-        #self.resolver.resolve(self.url)
-        raise NotImplementedError()
+        if not self._checked: # use resolver to get most recent version if not yet checked
+            self.resolver.resolve(self.url)
+            self._checked = True
+        
+        # and determine return value
+        
+        # time of last check
+        _now = self.headers.get_by_version(self.url,-1,True)['timestamp'] 
+        _now = HTTPDateTime().from_timestamp(_now)
+        # time of previous check
+        _prev = self.headers.get_by_version(self.url,-2,True)['timestamp']
+        _prev = HTTPDateTime().from_timestamp(_prev)
+        
+        d = self.get_diff(_prev,_now)
+        
+        if d is None: return False
+        if (d is basestring) and len(d)==0: return False
+        try: # d is htmldiff output
+            chunk = d.next()
+            if len(chunk.added)==0 and len(chunk.removed)==0:
+                return False
+        except: # if can't get d.next(), then d is probably empty -> no change
+            return False
+        
+        return True
+        
+        #raise NotImplementedError()
 
 
     def get_last_version(self):
@@ -172,6 +198,7 @@ class MonitoredResource(object):
         exist on the URL and never existed within the known history)
         """
         self.resolver.resolve(self.url)
+        self._checked = True
         try:
             return self.file.get_last_version()
         except NoFile: # FIXME tady to prece nemuze byt??!
@@ -220,7 +247,9 @@ class MonitoredResource(object):
         """
         content_start = self.get_version(start)
         content_end = self.get_version(end)
+#?        print content_start, content_end
         if content_start == content_end:
+#?            print "content_start == content_end"
             return None
         return content_start.diff_to(content_end)
 
@@ -392,17 +421,24 @@ if __name__ == "__main__":
 #    print "MONITOR: STORAGE: ",m._storage
 #    print "MONITOR: STORAGE: HEADERS: ",m._storage._headermeta
 #    print "MONITOR: STORAGE: GRIDFS: ",m._storage.filesystem    
+    
     #r = m.get("http://www.fit.vutbr.cz")
     #r = m.get("http://www.google.com")
-    r = m.get("http://localhost/act.html")
+    #r = m.get("http://cs.wikipedia.org/wiki/Hlavní_strana")
+    r = m.get("http://hu.wikipedia.org") 
+    #r = m.get("http://localhost/act.html")
+
     print "resource:",r,"\n"
-    print "last version: ",r.get_last_version(),"\n"  # works 
-    print "last checked: ",r.last_checked(),"\n"      # works
-    
+#    print "checked: ", r._checked
+#    print "last version: ",r.get_last_version()  # works 
+#    print "last checked: ",r.last_checked(),"\n"      # works
+#    print "check: ",r.check(),"\n"    
+#    print "checked: ", r._checked
+
     # use actual times when testing!!! 
     #   otherwise will get exception DocumentHistoryNotAvailable 
-#    print "by time: 2013-01-21 22:00",r.get_version(HTTPDateTime(2013,1,21,22,00)),"\n"
-#    print "by time: 2013-01-21 21:40",r.get_version(HTTPDateTime(2013,1,21,21,40)),"\n"
+#    print "by time: 2013-01-27 14:00",r.get_version(HTTPDateTime(2013,1,27,14,00)),"\n"
+    print "by time: 2013-01-27 13:40",r.get_version(HTTPDateTime(2013,1,27,13,40)),"\n"
 #    print "by time: 2013-01-21 21:38",r.get_version(HTTPDateTime(2013,1,21,21,38)),"\n"
 #    print "by time: 2013-01-18 23:34",r.get_version(HTTPDateTime(2013,1,18,23,34)),"\n"
 
@@ -411,25 +447,28 @@ if __name__ == "__main__":
 #    print "by version: version 4: ",r.get_version(4)
     c = r.get_version(-1)
     print "by version: version -1: ", c, c.upload_date
-    c = r.get_version(-2)
-    print "by version: version -2: ", c, c.upload_date
+#    c = r.get_version(-2)
+#    print "by version: version -2: ", c, c.upload_date
 #    c = r.get_version(-3)
 #    print "by version: version -3: ", c, c.upload_date
 #    c = r.get_version(-4)
 #    print "by version: version -4: ", c, c.upload_date
 
-    d = r.get_diff(-2,-1)
+    d = r.get_diff(HTTPDateTime(2013,1,27,0,0),-1)
+    print "DIFF\n"
+
     if d is (str or unicode): # text/plain
         print "diff -2,-1: ",d
+    elif d is None: 
+        print "d is None"#pass
     else: # text/html
         try:
             while(True):
                 chunk = d.next()
-                print "diff -2,-1: ",chunk.position,"\n",chunk.added,"\n",chunk.removed
-        except StopIteration:
-            exit()
-        except TypeError:
-            exit()
+                print "diff -2,-1: \n position: ",chunk.position,"\n added: ",chunk.added,"\n removed: ",chunk.removed
+                print "----------"
+        except (StopIteration, TypeError):
+            pass
 
 #    print "diff times: ",r.get_diff(HTTPDateTime(2013,1,21,22,00),HTTPDateTime(2013,1,21,21,38))
 #    c = r.get_version(-1) # works
