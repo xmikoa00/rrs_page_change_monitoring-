@@ -128,15 +128,11 @@ class MonitoredResource(object):
         # file
         try:
             self.file = self.storage.get(url)
-            #DEBUG
-#?            print "..self.file: ",self.file
         except DocumentNotAvailable:
             # if the file is not in the storage, resolver has to check
             # the url and load actual data into the storage
             self.resolver.resolve(url)
             self._checked = True
-            #DEBUG
-#?            print "here already: in MonitoredResource.get() 1st except"
             try:
                 self.file = self.storage.get(url)
             except DocumentNotAvailable:
@@ -163,6 +159,10 @@ class MonitoredResource(object):
         if not self._checked: # use resolver to get most recent version if not yet checked
             self.resolver.resolve(self.url)
             self._checked = True
+            try:
+                self.file = self.storage.get(self.url)
+            except DocumentNotAvailable:
+                raise DocumentNotAvailable("Resource '%s' is not available." % self.url)
         
         # and determine return value
         try:
@@ -183,14 +183,11 @@ class MonitoredResource(object):
             chunk = d.next()
             if len(chunk.added)==0 and len(chunk.removed)==0:
                 return False
-        except: # if can't get d.next(), then d is probably empty -> no change
+        except (StopIteration, TypeError): # if can't get d.next(), then d is probably empty -> no change
             return False
         
         return True
         
-        #raise NotImplementedError()
-
-
     def get_last_version(self):
         """
         Get last available content of the document. If the document is available
@@ -204,9 +201,10 @@ class MonitoredResource(object):
         self.resolver.resolve(self.url)
         self._checked = True
         try:
+            self.file = self.storage.get(self.url)
             return self.file.get_last_version()
         except NoFile: # FIXME tady to prece nemuze byt??!
-            raise DocumentNotAvailable("Resource is not available.")
+            raise DocumentNotAvailable("Resource '%s' is not available." % self.url)
 
 
     def get_version(self, time_or_version):
@@ -251,15 +249,13 @@ class MonitoredResource(object):
         """
         content_start = self.get_version(start)
         content_end = self.get_version(end)
-#?        print content_start, content_end
         if content_start == content_end:
-#?            print "content_start == content_end"
             return None
         return content_start.diff_to(content_end)
 
 
     def available(self, httptime=None):
-        if not isinstance(httptime, HTTPDateTime):
+        if (not isinstance(httptime, HTTPDateTime)) and (httptime is not None):
             raise TypeError("Time of availability has to be type HTTPDateTime.")
         # Pokud je httptime=None, pak se jedna o dostupnost v tomto okamziku
         raise NotImplementedError()
@@ -430,7 +426,7 @@ if __name__ == "__main__":
     #r = m.get("http://www.google.com")
     #r = m.get("http://cs.wikipedia.org/wiki/Hlavní_strana")
     #r = m.get("http://en.wikipedia.org") 
-    r = m.get("http://localhost/act.html")
+    r = m.get("http://localhost/api.pdf")
 
     print "resource:",r,"\n"
 #    print "checked: ", r._checked
@@ -462,12 +458,14 @@ if __name__ == "__main__":
 #    print "DIFF\n"
 
     # EXAMPLE OF GETTING AND PRINTING A DIFF OF TWO VERSIONS
-    version1 = HTTPDateTime(2013,1,27,13,40)
+    version1 = HTTPDateTime(2013,1,30,22,00)
     version2 = -1
     c1 = r.get_version(version1)
     c2 = r.get_version(version2)
     d = r.get_diff(version1,version2)
-    if issubclass(c1._differ,(diff.PlainTextDiff)):
+    if d is None: 
+        print "Versions ",version1," and ",version2," are equal.\n"
+    elif issubclass(c1._differ,(diff.PlainTextDiff)):
         print d
     elif issubclass(c1._differ,(diff.HtmlDiff)):
         try:
@@ -481,6 +479,8 @@ if __name__ == "__main__":
     elif issubclass(c1._differ,(diff.BinaryDiff)):
         print "used binary diff"
         # visualisation of BinaryDiff output/metadata comes here
+        print d['metainfo']
+        # d['diff'] # contains the actual compressed binary delta, not human-readable 
     else:
         raise RuntimeError()
 

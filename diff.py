@@ -73,6 +73,23 @@ class _DiffTmpFiles(object):
             fn = '/tmp/monitor.%s.tmp' % self.randomhash()
         return fn
 
+class _DiffTmpFilesBinary(_DiffTmpFiles):
+    """
+    tmp files for BinaryDiff
+    """
+    def __init__(self,obj1,obj2):
+        """
+        No need to use codecs on binary files
+        """
+        self.fn1 = self.get_unique_tmpfilename()
+        self.fn2 = self.get_unique_tmpfilename()
+        
+        f1 = open(self.fn1,'wb')
+        f1.write(obj1)
+        f2 = open(self.fn2,'wb')
+        f2.write(obj2)
+        
+            
 
 class DocumentDiff(object):
     """
@@ -121,7 +138,32 @@ class BinaryDiff(DocumentDiff):
     """
     @classmethod
     def diff(cls, obj1, obj2):
-        raise NotImplementedError()
+        """
+        @param obj1: first object to be diffed
+        @type obj1: 
+        @param obj2: second object to be diffed
+        @type obj2:
+        @returns: diff from xdelta and metainfo about diff
+        @rtype: dictionary {'diff': binaryDiff , 'metainfo': human-readable metainfo}
+        """
+        tmp = tempfile.NamedTemporaryFile(suffix='', prefix='tmp')
+        tmp_info = tempfile.TemporaryFile(suffix='', prefix='tmp')
+        devnull = open("/dev/null")
+        with _DiffTmpFilesBinary(obj1,obj2) as (fn1,fn2):
+            subprocess.call(["xdelta","delta",fn1,fn2,tmp.name],stderr=devnull)
+        subprocess.call(["xdelta","info",tmp.name],stdout=tmp_info,stderr=devnull)
+        output = {'diff': None, 'metainfo': "" }
+        tmp.seek(0)
+        output['diff'] = tmp.read() # this is compressed binary data
+        tmp.seek(0, os.SEEK_END)
+        tmp.close()
+        tmp_info.seek(0)
+        output['metainfo'] = tmp_info.read().decode('utf-8') # this is the human-readable part
+        tmp_info.seek(os.SEEK_END)
+        tmp_info.close()
+        return output
+
+        #raise NotImplementedError()
 
 
 class HtmlDiff(DocumentDiff):
