@@ -279,12 +279,13 @@ class File(object):
             # otherwise load content from db
             # ... the right query might do the same with a single line of code
             i = -1
+            time_shift = -1 * HTTPDateTime().to_timestamp()
             while(True):
                 try:
                     g = self._filesystem.get_version(filename=self.filename,version=i) # GridOut
                     upload_date = HTTPDateTime().from_gridfs_upload_date(g.upload_date).to_timestamp()
-#?                    print "\nupload_date: ",upload_date," ",g.upload_date," timestamp: ",timestamp_or_version,"\n"
-                    if (upload_date+3600) < timestamp_or_version :   # correction for time zone!!!
+#?                    print "\nupload_date: ",upload_date+time_shift," ",g.upload_date," timestamp: ",timestamp_or_version,"\n"
+                    if (upload_date+time_shift) < timestamp_or_version :   # correction for time zone!!!
                         r = self.content[content_id] = Content(g) # cache it
                         return r
                     else:
@@ -432,7 +433,6 @@ class HttpHeaderMeta(BaseMongoModel):
         try:
             return self.objects.find(q).sort('timestamp',DESCENDING)[0]
         except IndexError:
-#?            print "in httpheader:getversion: IndexError"
             return None
 
     def get_by_version(self, url, version, last_available=False):
@@ -456,7 +456,7 @@ class HttpHeaderMeta(BaseMongoModel):
             q["content"] = {"$exists" : True}
         try:
             c = self.objects.find(q).sort('timestamp', ASCENDING).count()
-            skip_ = c+version if version < 0 else c-version
+            skip_ = c+version if version < 0 else c-version  #??? TODO: validate this line
             return self.objects.find(q).sort('timestamp', ASCENDING).skip(skip_).limit(1)[0]
         except (IndexError, pymongo.errors.OperationFailure): # other exception might happen
             return None

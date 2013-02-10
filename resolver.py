@@ -150,11 +150,12 @@ class Resolver(object):
                 'urls': [url]
             }
             # store both headers and content
-            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], content_id)
-            # TODO: store data in GridFS... need to be consistent with the expectations of the other modules
+            # store data in GridFS... need to be consistent with the expectations of the other modules
             self._filesystem.put(self._web_full_info[2],filename=url,
                 content_type=self._web_full_info[1]['content-type'],
                 timestamp=HTTPDateTime().from_httpheader_format(self._web_full_info[1]['date']).to_timestamp())
+            # save header AFTER content: enable search of content by header timestamp
+            self._headers.save_header(url,self._web_full_info[0], self._web_full_info[1], content_id)
         elif store_decision[0] == 1:
             # store headers only
             self._headers.save_header(url,self.web_metainfo[0], self.web_metainfo[1], None)
