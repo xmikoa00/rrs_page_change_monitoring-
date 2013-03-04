@@ -284,7 +284,22 @@ class MonitoredResource(object):
         if (not isinstance(httptime, HTTPDateTime)) and (httptime is not None):
             raise TypeError("Time of availability has to be type HTTPDateTime.")
         # Pokud je httptime=None, pak se jedna o dostupnost v tomto okamziku
-        raise NotImplementedError()
+        if (httptime is None):
+            try:
+                self.check(force=True)
+            except DocumentNotAvailable:
+                return False
+            return True
+        else:
+            # when was last checked before 'httptime'
+            h = self.headers.get_by_time(self.url,httptime.to_timestamp())
+            if h is None: return False # not checked before time 'httptime'
+            t1 = h['timestamp']
+            try:
+                t2 = self.get_version(HTTPDateTime().from_timestamp(t1)).upload_date
+            except DocumentHistoryNotAvaliable:
+                return False
+            return True
 
 
     def last_checked(self):
@@ -451,14 +466,16 @@ if __name__ == "__main__":
     #r = m.get("http://www.google.com")
     #r = m.get("http://cs.wikipedia.org/wiki/Hlavní_strana")
     #r = m.get("http://en.wikipedia.org") 
-    r = m.get("http://localhost/2.html")
+    r = m.get("http://localhost/99.hml")
 
     print "resource:",r,"\n"
+    print "available now:",r.available(HTTPDateTime().now()),"\n"
+
 #    print "checked: ", r._checked
 #    print "check: ", r.check()
-    print "last version: ",r.get_last_version()  # works 
+#    print "last version: ",r.get_last_version()  # works 
 #    print "last checked: ",r.last_checked(),"\n"      # works
-    print "check: ",r.check(),"\n"
+#    print "check: ",r.check(),"\n"
     
 #    print "checked: ", r._checked
 
