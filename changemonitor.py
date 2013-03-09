@@ -29,6 +29,7 @@ import string
 import diff
 
 from urlparse import urlparse
+from threading import Thread
 
 from gridfs.errors import NoFile
 from pymongo import Connection
@@ -434,6 +435,17 @@ class Monitor(object):
             raise UidError("Cannot check uid=None. Monitor is switched to global-view mode.")
         return self._storage.check_uid()
 
+    def check_thread(self, url, res_list):
+        """
+        Create new MonitoredResource object and append it to res_list
+        this implements one thread of check_multi()
+        """
+        try:
+            res = self.get(url)
+        except ValueError:
+            print "Warning: invalid url: ",url
+        else:
+            res_list.append(res)
 
     def check_multi(self, urls=[]):
         """
@@ -443,8 +455,19 @@ class Monitor(object):
         @returns: list of MonitoredResource objects, each with actual data
         @rtype: list<MonitoredResource>
         """
-        # TODO: zkontrolovat, jestli vsechny prvky v urls jsou validni URL adresy
         raise NotSupportedYet()
+
+        resource_list = []
+        thread_list = []
+        for url in urls:
+            # create new thread  
+            thread_list.append(Thread(target=self.check_thread,args=(url,resouce_list)))
+            thread_list[len(thread_list)-1].start()
+        # wait for all threads to finish
+        for thr in thread_list:
+            thr.join()
+        # return list of MonitoredResoure objects
+        return resource_list
 
 
     def __repr__(self):
