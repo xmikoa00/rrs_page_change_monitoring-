@@ -12,16 +12,34 @@ from changemonitor import Monitor
 
 
 def main():
+    """
+    TODO: docstring
+    """
+    # process cmd arguments
+
+    # init Monitor
+    m = Monitor(user_id=uid)
+    
+    # do something useful based on cmd arguments
     pass
 
 def test_check_multi():
+    """
+    Test function for Monitor.check_multi() method
+    """
     m = Monitor(user_id='rrs')
 
     url_list = []
-    url_list.append("http://localhost/1.txt")
-    url_list.append("http://localhost/2.txt")
+#    url_list.append("http://www.google.com")
+    url_list.append("http://www.fit.vutbr.cz")
+#    url_list.append("http://en.wikipedia.org")
 
     r_list = m.check_multi(url_list)
+    
+    for r in r_list:
+        r.check()
+        print r.url,":",r.last_checked()
+
 
     exit(0)
 

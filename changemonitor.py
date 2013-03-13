@@ -29,7 +29,7 @@ import string
 import diff
 
 from urlparse import urlparse
-from threading import Thread
+from threading import Thread, Semaphore
 
 from gridfs.errors import NoFile
 from pymongo import Connection
@@ -374,6 +374,8 @@ class Monitor(object):
             raise NotImplementedError("HTTP proxy not supported yet.")
         # initialize models
         self._init_models(db_host, db_port, db_name, user_id)
+        # protect calls to urlparse() from Monitor.get()
+        self._url_parse_sem = Semaphore()
 
 
     def _init_models(self, host, port, db, uid):
@@ -397,13 +399,18 @@ class Monitor(object):
         Design pattern: factory method.
         """
         # test the url validity
+        # UPDATE: urlparse() is not thread-safe, adding semaphore for synchronization
+        self._url_parse_sem.acquire()
         parse_result = urlparse(url)
+        self._url_parse_sem.release()
+
         if parse_result.netloc == '':
             raise ValueError("URL '%s' is not properly formatted: missing netloc." % url)
         if parse_result.scheme == '':
             raise ValueError("URL '%s' is not properly formatted: missing scheme." % url)
         # return monitored resource object
-        return MonitoredResource(parse_result.geturl(), self._user_id, self._storage)
+        parsed_url = parse_result.geturl()
+        return MonitoredResource(parsed_url, self._user_id, self._storage)
 
 
     def allow_large_documents(self):
@@ -439,6 +446,8 @@ class Monitor(object):
         """
         Create new MonitoredResource object and append it to res_list
         this implements one thread of check_multi()
+
+        note: list.append() is claimed to be thread-safe in python
         """
         try:
             res = self.get(url)
@@ -455,13 +464,13 @@ class Monitor(object):
         @returns: list of MonitoredResource objects, each with actual data
         @rtype: list<MonitoredResource>
         """
-        raise NotSupportedYet()
+        #raise NotSupportedYet()
 
-        resource_list = []
+        resource_list = [] # each thread appends one MonitoredResource object
         thread_list = []
         for url in urls:
             # create new thread  
-            thread_list.append(Thread(target=self.check_thread,args=(url,resouce_list)))
+            thread_list.append(Thread(target=self.check_thread,args=(url,resource_list)))
             thread_list[len(thread_list)-1].start()
         # wait for all threads to finish
         for thr in thread_list:
