@@ -7,6 +7,7 @@ __author__ = "Stanislav Heller"
 __email__ = "xhelle03@stud.fit.vutbr.cz"
 __date__ = "$25.6.2012 12:12:44$"
 
+import sys
 
 import tempfile
 import random
@@ -28,7 +29,7 @@ try:
 except ImportError:
     _detector = None
 
-
+# TODO: fix problems with character encodings
 class _DiffTmpFiles(object):
     """
     Private context manager class for creating two temporary files in the
@@ -42,14 +43,16 @@ class _DiffTmpFiles(object):
             try:
                 f1.write(obj1)
             except:
-                f1.write(unicode(obj1,'utf-8'))
+                #f1.write(unicode(obj1,'utf-8'))
+                f1.write(HtmlDiff._solve_encoding(obj1))
             if obj1[-1] != '\n':
                 f1.write('\n')
         with codecs.open(self.fn2, encoding='utf-8', mode='wb') as f2:
             try:
                 f2.write(obj2)
             except:
-                f2.write(unicode(obj2,'utf-8'))
+                #f2.write(unicode(obj2,'utf-8'))
+                f2.write(HtmlDiff._solve_encoding(obj1))
             if obj2[-1] != '\n':
                 f2.write('\n')
 
@@ -258,6 +261,7 @@ class HtmlDiff(DocumentDiff):
                     break
                 except: pass
         # convert it into unicode
+        print >> sys.stderr, "diff: encoding: ",encoding
         try:
             return unicode(html, encoding)
         except (UnicodeDecodeError, ValueError, LookupError):
