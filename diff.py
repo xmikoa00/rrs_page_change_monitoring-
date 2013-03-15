@@ -260,8 +260,7 @@ class HtmlDiff(DocumentDiff):
                     encoding = e
                     break
                 except: pass
-        # convert it into unicode
-        print >> sys.stderr, "diff: encoding: ",encoding
+        # convert it into unicode 
         try:
             return unicode(html, encoding)
         except (UnicodeDecodeError, ValueError, LookupError):
