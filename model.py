@@ -464,12 +464,17 @@ class HttpHeaderMeta(BaseMongoModel):
     def save_header(self, url, response_code, fields, content_id):
         """
         Save http header into HttpHeaderMeta database
+       
+        if request was timeouted and response_code is None, 
+        response_code=600 will be saved
         @param url: url of checked resource
         @param response_code: response code of web server
         @param fields: fields of http response
         @param content_id: content-id field of http response
         @returns: saved object
         """
+        if (fields=='Timeouted' and response_code is None):
+            response_code = 600
         h = {
             "timestamp": time.time(),
             "url": url,
