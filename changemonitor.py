@@ -450,7 +450,8 @@ class Monitor(object):
         note: list.append() is claimed to be thread-safe in python
         """
         try:
-            res = self.get(url)
+            res = self.get(url)  # get MonitoredResource object
+            res.check()          # actualize content
         except ValueError:
             print "Warning: invalid url: ",url
         else:

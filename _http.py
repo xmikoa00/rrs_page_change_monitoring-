@@ -18,6 +18,8 @@ import time
 import httplib
 from urlparse import urlsplit
 import socket
+from threading import Semaphore
+
 
 class _HTTPConnectionProxy(object):
     """
@@ -161,6 +163,8 @@ class HTTPDateTime(object):
     -7200.0
     # WTF?
     """
+    strptime_lock = Semaphore() # lock for time.strptime method
+
     def __init__(self, year=1970, month=1, day=1, hour=0, minute=0, second=0, microsecond=0):
         self._datetime = datetime(year, month, day, hour, minute, second, microsecond)
 
@@ -182,7 +186,10 @@ class HTTPDateTime(object):
         @returns: HTTPDateTime object equivalent to date and time of the timestr
         @rtype: HTTPDateTime
         """
+        self.__class__.strptime_lock.acquire()
         ts = time.strptime(timestr, "%a, %d %b %Y %H:%M:%S GMT")
+        self.__class__.strptime_lock.release()
+
         self.from_timestamp(time.mktime(ts))
         return self
 
@@ -193,10 +200,14 @@ class HTTPDateTime(object):
         @returns: unix timestamp
         @rtype: float
         """
-        ts = time.strptime(str(self._datetime.year) + '-' + str(self._datetime.month) + \
+        timestr = (str(self._datetime.year) + '-' + str(self._datetime.month) + \
             '-' + str(self._datetime.day) + 'T' + str(self._datetime.hour) + ':' + \
             str(self._datetime.minute) + ':' + str(self._datetime.second) + \
-            " GMT" , '%Y-%m-%dT%H:%M:%S %Z')
+            " GMT")
+        self.__class__.strptime_lock.acquire() 
+        ts = time.strptime(timestr, '%Y-%m-%dT%H:%M:%S %Z')
+        self.__class__.strptime_lock.release()
+
 #        return time.mktime(ts) - 3600 + (self._datetime.microsecond / 1000000.0)
         return time.mktime(ts) + (self._datetime.microsecond / 1000000.0)
 
@@ -234,7 +245,10 @@ class HTTPDateTime(object):
         @returns: HTTPDateTime object representing date and time of update_date
         @rtype: HTTPDateTime
         """
+        self.__class__.strptime_lock.acquire()
         ts = time.strptime((str(upload_date))[:18],"%Y-%m-%d %H:%M:%S")
+        self.__class__.strptime_lock.release()
+
         self.from_timestamp(time.mktime(ts))
         return self
 
