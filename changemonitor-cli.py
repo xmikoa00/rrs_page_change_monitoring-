@@ -17,33 +17,54 @@ def init_monitor(args):
     set uid, db name and port
     @return Monitor object
     """
-    pass
+    return Monitor(user_id=args.uid, db_port=args.port, db_name=args.db)    
 
 def url_check(args,monitor):
     """
     check functionality
     """
-    pass
+    if args.url is not None:
+        r = monitor.get(args.url)
+        print "----------"
+        print "Checking ",args.url,"\nForced check: ",args.force
+        print "Changed since last check: ",r.check(force=args.force)
+    elif args.list is not None:
+        try:
+            f_in = open(args.list)
+            for u in f_in:
+                if "\r\n" in u:  # CRLF line ending
+                    i = -2
+                else:            # CR only or LF only line ending
+                    i = -1
+                r = monitor.get(u[:i])
+                print "----------"
+                print "Checking ",u[:i],"\nForced check: ",args.force
+                print "Changed since last check: ",r.check(force=args.force)
+        except Exception:
+            print "Cannot open file\n"
+            exit(10)           
+    else:
+        print "Bad parameters, no url specified"
+        exit(2) 
 
 def url_diff(args,monitor):
     """
     diff of two versions of the same url
     """
-    pass
+    print "changemonitor diff"
 
 def url_print(args,monitor):
     """
     print contents of url, version in db or given by time
     """
-    pass
+    print "changemonitor print"
 
 def url_available(args,monitor):
     """
     check availability of url at given time
     @return True/False
     """
-    pass
-
+    print "changemonitor available"
 
 
 def parse_args():
@@ -104,17 +125,19 @@ def parse_args():
 
 def main():
     """
-    TODO: docstring
+    parses command line
+    initialises Monitor, prints debug information for Monitor
+    calls function based on cmd arguments(check,diff,print,available) 
     """
     # process cmd arguments
-    print "parsing arguments: ",sys.argv
     args = parse_args()
 
     # init Monitor
-#    monitor = init_monitor(args)    
-    
+    monitor = init_monitor(args)    
+    print "Monitor initialised\n", monitor    
+
     # do something useful based on cmd arguments
-#    args.func(args,monitor)
+    args.func(args,monitor)
 
 if __name__ == "__main__":
     main()
