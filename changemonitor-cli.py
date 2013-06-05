@@ -9,7 +9,12 @@ Command line interface to changemonitor module
 
 import sys
 import argparse
+from _http import HTTPDateTime
+from errors import *
 from changemonitor import Monitor
+
+class TimeException():
+    pass
 
 def init_monitor(args):
     """
@@ -18,6 +23,27 @@ def init_monitor(args):
     @return Monitor object
     """
     return Monitor(user_id=args.uid, db_port=args.port, db_name=args.db)    
+
+def parse_time(timestr):
+    """
+    parse time argument from command-line
+    valid formats are:
+    >>> YYYY-MM-DD    # same as YYYY-MM-DD 23:59:59
+    >>> YYYY-MM-DD HH:MM:SS
+
+    @return HTTPDateTime object
+    """
+    try:
+        if len(timestr)==19: # date and time specified
+            pass
+        elif len(timestr)==10: # only date specified
+            timestr = timestr + " 23:59:59"   # searching up to end of day
+        else:
+            raise Exception()
+        return HTTPDateTime().from_gridfs_upload_date(timestr)
+    except Exception:
+        print 'Invalid time expression specified, valid format is "YYYY-MM-DD [HH:MM:SS]"'
+        raise TimeException()       
 
 def url_check(args,monitor):
     """
@@ -57,15 +83,43 @@ def url_print(args,monitor):
     """
     print contents of url, version in db or given by time
     """
-    print "changemonitor print"
+    if args.url is not None:
+        r = monitor.get(args.url)
+        if args.v is not None: # version specified
+            try:
+                c = r.get_version(int(args.v)) 
+            except DocumentHistoryNotAvaliable:
+                print "Version ",args.v," of document not available in the database"
+                exit(3)
+        elif args.t is not None: # time specified
+            try:
+                t = parse_time(args.t)
+            except TimeException:
+                exit(3)
+            c = r.get_version(t)
+        else: # printing actual version
+            c = r.get_last_version()
+        print c.read()
 
 def url_available(args,monitor):
     """
     check availability of url at given time
     @return True/False
     """
-    print "changemonitor available"
-
+    if args.url is not None:
+        r = monitor.get(args.url)
+        if args.t is not None: 
+            try:
+                t = parse_time(args.t)
+            except TimeException:
+                exit(3)
+        else:
+            t = HTTPDateTime().now()
+        print "Document at ",args.url
+        print "  was available in time: ",t," -- ",r.available(t)
+    else:
+        print "Error: url not specified"
+        exit(2)
 
 def parse_args():
     """
@@ -79,7 +133,8 @@ def parse_args():
     # specify global values
     parser.add_argument("--uid",default="rrs",help="user id")
     parser.add_argument("--db",default="webarchive",help="name of database")
-    parser.add_argument("--port",default=27017,type=int,help="port of database server")
+    parser.add_argument("--port",default=27017,type=int,
+        help="port of database server")
 
     # specify url(s) to perform action on
     url_list = parser.add_mutually_exclusive_group(required=True)
@@ -103,8 +158,6 @@ def parse_args():
     parser_diff_v_or_t.add_argument("-v",nargs=2,type=int,
         help="version by version numbers")
     parser_diff_v_or_t.add_argument("-t",nargs=2,help="version by timestamps")
-    #parser_diff.add_argument("A",help="specify first version of document")
-    #parser_diff.add_argument("B",help="specify second version of document")
     parser_diff.set_defaults(func=url_diff)
 
     # print out the contents of document saved in database
@@ -129,6 +182,8 @@ def main():
     initialises Monitor, prints debug information for Monitor
     calls function based on cmd arguments(check,diff,print,available) 
     """
+    print sys.argv
+
     # process cmd arguments
     args = parse_args()
 
